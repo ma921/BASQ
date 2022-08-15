@@ -34,8 +34,8 @@ def set_basq():
 
 if __name__ == "__main__":
     torch.manual_seed(0)
-    n_batch = 10      # the number of BASQ iteration
-    
+    n_batch = 10           # the number of BASQ iteration
+
     prior, model, likelihood, true_likelihood, metric = set_basq()
     basq = BASQ(
         prior,
@@ -47,8 +47,9 @@ if __name__ == "__main__":
         training_iter=100, # number of SDG interations for GP Type-II MLE
         batch_size=100,    # batch size
         quad_ratio=5,      # supersampling ratio for quadrature
+        show_progress=True
     )
-    
+
     results = basq.run(n_batch)
     print(
         "overhead: "+str(results[:,0].sum().item())+" [s]\n"
@@ -56,5 +57,5 @@ if __name__ == "__main__":
         + "final E[Z|y]: "+str(results[-1,1].item())+"\n"
         + "final Var[Z|y]: "+str(results[-1,2].item())+"\n"
         + "logMAE: "+str(torch.log(torch.tensor(abs(results[-1][1] - metric.Z_true))).item())+"\n"
-        + "logKL: "+str(torch.log(metric(basq.model, basq.likelihood, results[-1][1])).item())+"\n"
+        + "logKL: "+str(torch.log(metric(basq, results[-1][1])).item())+"\n"
     )
