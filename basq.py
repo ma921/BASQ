@@ -36,11 +36,19 @@ class BASQ:
         w = torch.ones(n_rec) / n_rec
         return pts_nys, pts_rec, w
 
+    def update_gp(self, X,Y):
+        Xobs = self.model.train_inputs[0]
+        Yobs = self.model.train_targets
+        Xall = torch.cat([Xobs, X])
+        Yall = torch.cat([Yobs, Y])
+        self.model, self.likelihood = gp.update_gp(Xall,Yall, self.model, training_iter=self.training_iter)
+        return self.model, self.likelihood
+    
     def run_basq(self):
         pts_nys, pts_rec, w_IS = self.Sampler(self.n_rec)
         X, _ = self.run_rchq(pts_nys, pts_rec, w_IS)
         Y = self.true_likelihood(X)
-        self.model, self.likelihood = gp.update_gp(X,Y, self.model, training_iter=self.training_iter)
+        self.model, self.likelihood = self.update_gp(X,Y)
         #return model, likelihood, kernel
 
     def run_rchq(self, pts_nys, pts_rec, w_IS):
