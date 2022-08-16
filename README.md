@@ -18,3 +18,9 @@ python3 main.py
 ```
 
 The example with Gaussian Mixture Likelihood (dim=3) will run.
+
+## Comments
+This main branch is only for the CPU environment.
+GPU version is in the branch "bascuda".
+Pytorch device assignment causes additional overhead, which is why the versions are separated.
+While CPU outperforms GPU in small settings, whereas GPU performs better in large settings (e.g. larger batch iteration, batch size)
