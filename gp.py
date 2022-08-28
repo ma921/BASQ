@@ -20,13 +20,14 @@ def set_gp(train_x, train_y, gp_kernel):
         likelihood = likelihood.cuda()
     return model, likelihood
     
-def train_GP(model, likelihood, training_iter=50):
+def train_GP(model, likelihood, training_iter=50, thresh=0.01):
     model.train()
     likelihood.train()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.1)  # Includes GaussianLikelihood parameters
     mll = gpytorch.mlls.ExactMarginalLogLikelihood(likelihood, model)
     train_x = model.train_inputs[0]
     train_y = model.train_targets
+    loss_best = torch.tensor(1e8)
 
     for i in range(training_iter):
         optimizer.zero_grad()
@@ -34,6 +35,11 @@ def train_GP(model, likelihood, training_iter=50):
         loss = -mll(output, train_y)
         loss.backward()
         optimizer.step()
+        if loss.item() < loss_best:
+            delta = torch.abs(loss_best - loss.detach())
+            loss_best = loss.item()
+            if delta < thresh:
+                break
     return model, likelihood
 
 def update_gp(train_x, train_y, model, training_iter=50):
