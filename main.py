@@ -1,0 +1,49 @@
+import torch
+from torch.distributions.multivariate_normal import MultivariateNormal
+from BASQ.experiment.gmm import GMM
+from BASQ._basq import BASQ
+from BASQ._metric import KLdivergence
+import warnings
+warnings.filterwarnings('ignore')
+
+def set_basq():
+    # Bayesian Inference Modelling
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    num_dim = 3
+    mu_pi = torch.zeros(num_dim)
+    cov_pi = 2*torch.eye(num_dim)
+    true_likelihood = GMM(num_dim, mu_pi, cov_pi, device)
+
+    # BQ modelling
+    train_x = torch.rand(2,num_dim)
+    train_y = true_likelihood(train_x)
+    prior = MultivariateNormal(mu_pi,cov_pi)
+    
+    # evaluation setting
+    Z_true = 1
+    test_x = prior.sample(sample_shape=torch.Size([10000]))
+    metric = KLdivergence(prior, test_x, Z_true, true_likelihood)
+    print("True model evidence E[Z|y] is "+str(metric.Z_true))
+    return prior, train_x, train_y, true_likelihood, metric
+
+if __name__ == "__main__":
+    torch.manual_seed(0)
+    n_batch = 5           # the number of BASQ iteration
+
+    prior, train_x, train_y, true_likelihood, metric = set_basq()
+    basq = BASQ(
+        train_x,
+        train_y,
+        prior,
+        true_likelihood,
+    )
+
+    results = basq.run(n_batch)
+    print(
+        "overhead: "+str(results[:,0].sum().item())+" [s]\n"
+        + "overhead per sample: "+str(results[:,0].sum().item()/basq.batch_size/n_batch)+" [s]\n"
+        + "final E[Z|y]: "+str(results[-1,1].item())+"\n"
+        + "final Var[Z|y]: "+str(results[-1,2].item())+"\n"
+        + "logMAE: "+str(torch.log(torch.tensor(abs(results[-1][1] - metric.Z_true))).item())+"\n"
+        + "logKL: "+str(torch.log(metric(basq, results[-1][1])).item())+"\n"
+    )
