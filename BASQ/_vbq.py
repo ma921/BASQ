@@ -9,6 +9,7 @@ class VanillaGP:
         Xobs, 
         Yobs,
         gp_kernel,
+        device,
         lik=1e-10, 
         training_iter=10000,
         thresh=0.01,
@@ -17,6 +18,7 @@ class VanillaGP:
         train_lik=False,
     ):
         self.gp_kernel = gp_kernel
+        self.device = device
         self.lik = lik
         self.training_iter = training_iter
         self.thresh = thresh
@@ -26,12 +28,13 @@ class VanillaGP:
         
         self.jitter = 1e-6
         self.Y_unwarp = copy.deepcopy(Yobs)
-        self.utils = Utils()
+        self.utils = Utils(device)
         
         self.model = update_gp(
             Xobs,
             Yobs,
             gp_kernel,
+            self.device,
             lik=self.lik,
             training_iter=self.training_iter, 
             thresh=self.thresh,
@@ -55,6 +58,7 @@ class VanillaGP:
             Xall,
             Yall,
             self.gp_kernel,
+            self.device,
             lik=self.lik,
             training_iter=self.training_iter, 
             thresh=self.thresh, 
@@ -70,6 +74,7 @@ class VanillaGP:
             Xobs,
             Yobs,
             self.gp_kernel,
+            self.device,
             lik=self.lik,
             training_iter=self.training_iter, 
             thresh=self.thresh, 

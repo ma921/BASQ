@@ -4,8 +4,8 @@ from ._rchq import recombination
 from ._parameters import Parameters
 
 class BASQ(Parameters):
-    def __init__(self, Xobs, Yobs, prior, true_likelihood):
-        super().__init__(Xobs, Yobs, prior, true_likelihood)
+    def __init__(self, Xobs, Yobs, prior, true_likelihood, device):
+        super().__init__(Xobs, Yobs, prior, true_likelihood, device)
     
     def joint_posterior(self, x, EZy):
         return self.predict_mean(x) * self.prior.log_prob(x).exp() / EZy
@@ -23,6 +23,7 @@ class BASQ(Parameters):
             pts_nys,
             self.batch_size,
             kernel,
+            self.device,
             init_weights=w_IS,
         )
         x = pts_rec[idx]

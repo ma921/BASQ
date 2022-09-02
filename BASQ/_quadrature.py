@@ -3,13 +3,14 @@ from ._gp import predict
 from ._rchq import recombination
 
 class KernelQuadrature:
-    def __init__(self, n_rec, n_nys, n_quad, batch_size, sampler, kernel, mean_predict):
+    def __init__(self, n_rec, n_nys, n_quad, batch_size, sampler, kernel, device, mean_predict):
         self.n_rec = n_rec
         self.n_nys = n_nys
         self.n_quad = n_quad
         self.batch_size = batch_size
         self.sampler = sampler
         self.kernel = kernel
+        self.device = device
         self.mean_predict = mean_predict
 
     def rchq(self, pts_nys, pts_rec, w_IS, batch_size, kernel):
@@ -18,6 +19,7 @@ class KernelQuadrature:
             pts_nys,
             batch_size,
             kernel,
+            self.device,
             init_weights=w_IS,
         )
         x = pts_rec[idx]

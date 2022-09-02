@@ -1,14 +1,15 @@
 import torch
 
 class KLdivergence:
-    def __init__(self, prior, test_data, Z_true, true_function):
+    def __init__(self, prior, test_data, Z_true, device, true_function):
         self.prior = prior
         self.test_data = test_data
         self.Z_true = Z_true
+        self.device = device
         self.true_function = true_function
     
     def __call__(self, basq_model, EZy):
-        KL = torch.zeros(len(self.test_data))
+        KL = torch.zeros(len(self.test_data)).to(self.device)
         q = torch.squeeze(
             self.prior.log_prob(self.test_data).exp() * self.true_function(self.test_data) / self.Z_true
         )

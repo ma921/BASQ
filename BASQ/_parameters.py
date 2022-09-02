@@ -6,7 +6,7 @@ from ._wsabi import WsabiGP
 from ._vbq import VanillaGP
     
 class Parameters:
-    def __init__(self, Xobs, Yobs, prior, true_likelihood):
+    def __init__(self, Xobs, Yobs, prior, true_likelihood, device):
         ##### defining ######
         # BQ Modelling
         bq_model="wsabi"             # select a BQ model from ["wsabi", "vbq"]
@@ -22,7 +22,7 @@ class Parameters:
         rng=10                       # range of likelihood noise [lik/rng, lik*rng]
         train_lik=False              # flag whether or not to train likelihood noise. if False, the noise is fixed with lik
         training_iter=1000           # maximum number of SDG interations
-        thresh=0.01                  # stopping criterion. threshold = last_MLL - current_MLL
+        thresh=0.05                  # stopping criterion. threshold = last_MLL - current_MLL
         lr=0.1                       # learning rate of Adam
 
         # RCHQ hyperparameters
@@ -33,7 +33,7 @@ class Parameters:
 
         # Uncertainty sampling
         ratio=0.5                    # mixing ratio of prior and uncertainty sampling
-        n_gaussians=100              # Number of Gaussians approximating the GP-modelled acquisition function 
+        n_gaussians=100              # Number of Gaussians approximating the GP-modelled acquisition function
         threshold=1e-5               # Threshold to cut off the insignificant Gaussians
 
         # Utility
@@ -42,6 +42,7 @@ class Parameters:
         ##### loading #####
         self.n_rec = n_rec
         self.batch_size = batch_size
+        self.device = device
         self.show_progress = show_progress
 
         self.prior = prior
@@ -56,7 +57,7 @@ class Parameters:
         self.set_quadrature(nys_ratio, int(n_rec*nys_ratio), int(quad_ratio*n_rec))
         
     def set_sampler(self, sampler_type, prior, n_rec, nys_ratio, ratio, n_gaussians, threshold):
-        self.prior_sampler = PriorSampler(prior, n_rec, nys_ratio)
+        self.prior_sampler = PriorSampler(prior, n_rec, nys_ratio, self.device)
 
         if sampler_type == "uncertainty":
             self.sampler = UncertaintySampler(
@@ -64,12 +65,13 @@ class Parameters:
                 self.wsabi.model,
                 n_rec,
                 nys_ratio,
+                self.device,
                 ratio=ratio,
                 n_gaussians=n_gaussians,
                 threshold=threshold,
             )
         elif sampler_type == "prior":
-            self.sampler = PriorSampler(prior, n_rec, nys_ratio)
+            self.sampler = PriorSampler(prior, n_rec, nys_ratio, self.device)
         else:
             raise Exception("The given sampler_type is undefined.")
 
@@ -79,6 +81,7 @@ class Parameters:
                 Xobs,
                 Yobs,
                 gp_kernel,
+                self.device,
                 label=wsabi_type,
                 alpha_factor=alpha_factor,
                 lik=lik,
@@ -100,6 +103,7 @@ class Parameters:
                 Xobs, 
                 Yobs,
                 gp_kernel,
+                self.device,
                 lik=lik,
                 training_iter=training_iter,
                 thresh=thresh,
@@ -122,7 +126,8 @@ class Parameters:
             n_quad,
             self.batch_size, 
             self.prior_sampler, 
-            self.kernel, 
+            self.kernel,
+            self.device,
             self.predict_mean,
         )
 

@@ -12,7 +12,7 @@ class ExactGPModel(gpytorch.models.ExactGP):
         covar_x = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean_x, covar_x)
 
-def set_gp(train_x, train_y, gp_kernel, lik=1e-10, rng=10, train_lik=False):
+def set_gp(train_x, train_y, gp_kernel, device, lik=1e-10, rng=10, train_lik=False):
     likelihood = gpytorch.likelihoods.GaussianLikelihood()
     likelihood.noise_covar.register_constraint("raw_noise", gpytorch.constraints.Interval(lik/rng, lik*rng))
     model = ExactGPModel(train_x, train_y, likelihood, gp_kernel)
@@ -25,7 +25,7 @@ def set_gp(train_x, train_y, gp_kernel, lik=1e-10, rng=10, train_lik=False):
     if not train_lik:
         model.likelihood.raw_noise.requires_grad = False
     
-    if torch.cuda.is_available():
+    if device.type == 'cuda':
         model = model.cuda()
         model.likelihood = model.likelihood.cuda()
     return model
@@ -52,8 +52,8 @@ def train_GP(model, training_iter=50, thresh=0.01, lr=0.1):
                 break
     return model
 
-def update_gp(train_x, train_y, gp_kernel, lik=1e-10 , training_iter=50, thresh=0.01, lr=0.1, rng=10, train_lik=False):
-    model = set_gp(train_x, train_y, gp_kernel, lik=lik, rng=rng, train_lik=train_lik)
+def update_gp(train_x, train_y, gp_kernel, device, lik=1e-10 , training_iter=50, thresh=0.01, lr=0.1, rng=10, train_lik=False):
+    model = set_gp(train_x, train_y, gp_kernel, device, lik=lik, rng=rng, train_lik=train_lik)
     model = train_GP(model, training_iter=training_iter, thresh=thresh, lr=lr)
     return model
 

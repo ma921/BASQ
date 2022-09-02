@@ -13,6 +13,7 @@ class WsabiGP:
         Xobs, 
         Yobs,
         gp_kernel,
+        device,
         label="wsabil",
         alpha_factor=0.8, 
         lik=1e-10, 
@@ -23,6 +24,7 @@ class WsabiGP:
         train_lik=False,
     ):
         self.gp_kernel = gp_kernel
+        self.device = device
         self.alpha_factor = alpha_factor
         self.lik = lik
         self.training_iter = training_iter
@@ -33,12 +35,13 @@ class WsabiGP:
         
         self.jitter = 1e-6
         self.Y_unwarp = copy.deepcopy(Yobs)
-        self.utils = Utils()
+        self.utils = Utils(device)
         
         self.model = update_gp(
             Xobs,
             self.process_y_warping(Yobs),
             gp_kernel,
+            self.device,
             lik=self.lik, 
             training_iter=self.training_iter, 
             thresh=self.thresh, 
@@ -47,7 +50,7 @@ class WsabiGP:
             train_lik=self.train_lik,
         )
         self.setting(label)
-        self.gauss = GaussianCalc(self.model)
+        self.gauss = GaussianCalc(self.model, self.device)
         
     def setting(self, label):
         if label == "wsabil":
@@ -88,6 +91,7 @@ class WsabiGP:
             X_warp,
             Y_warp,
             self.gp_kernel,
+            self.device,
             lik=self.lik,
             training_iter=self.training_iter, 
             thresh=self.thresh, 
@@ -103,6 +107,7 @@ class WsabiGP:
             X_warp,
             Y_warp,
             self.gp_kernel,
+            self.device,
             lik=self.lik,
             training_iter=self.training_iter, 
             thresh=self.thresh, 
@@ -168,6 +173,7 @@ class WsabiGP:
             Xobs_uni, 
             Y_IS.detach(), 
             self.gp_kernel,
+            self.device,
             lik=self.lik,
             training_iter=self.training_iter, 
             thresh=self.thresh, 

@@ -1,11 +1,12 @@
 import copy
 import torch
+import warnings
 from ._gaussian_calc import GaussianCalc
 from torch.distributions.multivariate_normal import MultivariateNormal
 
 class SquareRootAcquisitionFunction(GaussianCalc):
-    def __init__(self, prior, model, n_gaussians=100, threshold=1e-5):
-        super().__init__(prior)
+    def __init__(self, prior, model, device, n_gaussians=100, threshold=1e-5):
+        super().__init__(prior, device)
         self.n_gaussians = n_gaussians
         self.threshold = threshold   # the threshold to cut off the small weights
         self.update(model)
@@ -52,10 +53,11 @@ class SquareRootAcquisitionFunction(GaussianCalc):
             x_AA = (torch.tile(self.mu_AA, (d_x,1,1)) - x.unsqueeze(1)).reshape(
                 self.d_AA * d_x, self.n_dims
             )
-            Npdfs_AA = MultivariateNormal(
-                torch.zeros(self.n_dims),
+            Npdfs_AA = self.utils.safe_mvn_prob(
+                torch.zeros(self.n_dims).to(self.device),
                 self.sigma_AA,
-            ).log_prob(x_AA).exp().reshape(d_x, self.d_AA)
+                x_AA,
+            ).reshape(d_x, self.d_AA)
 
             f_AA = self.wAA.unsqueeze(0) * Npdfs_AA
             second = f_AA.sum(axis=1)
@@ -63,7 +65,7 @@ class SquareRootAcquisitionFunction(GaussianCalc):
         
     def sampling(self, n):
         cntA = (n * self.wA).type(torch.int)
-        samplesA = self.prior.sample(torch.Size([cntA]))
+        samplesA = self.prior.sample(torch.Size([cntA])).to(self.device)
 
         if len(self.wAA) == 0:
             return samplesA
@@ -73,7 +75,7 @@ class SquareRootAcquisitionFunction(GaussianCalc):
                 MultivariateNormal(
                     self.mu_AA[i],
                     self.sigma_AA,
-                ).sample(torch.Size([cnt]))
+                ).sample(torch.Size([cnt])).to(self.device)
                 for i, cnt in enumerate(cntAA)
             ])
             return torch.cat([samplesA, samplesAA])

@@ -4,16 +4,17 @@ from ._utils import Utils
 from ._acquisition_function import SquareRootAcquisitionFunction
 
 class PriorSampler:
-    def __init__(self, prior, n_rec, nys_ratio):
+    def __init__(self, prior, n_rec, nys_ratio, device):
         self.prior = prior
         self.n_rec = n_rec
         self.nys_ratio = nys_ratio
+        self.device = device
 
     def __call__(self, n_rec):
-        pts_rec = self.prior.sample(sample_shape=torch.Size([n_rec]))
+        pts_rec = self.prior.sample(sample_shape=torch.Size([n_rec])).to(self.device)
         pts_nys = pts_rec[:int(self.n_rec*self.nys_ratio)]
         w = torch.ones(n_rec) / n_rec
-        return pts_nys, pts_rec, w
+        return pts_nys, pts_rec, w.to(self.device)
     
 class UncertaintySampler(SquareRootAcquisitionFunction):
     def __init__(
@@ -22,15 +23,17 @@ class UncertaintySampler(SquareRootAcquisitionFunction):
         model,
         n_rec,
         nys_ratio,
+        device,
         ratio=0.5,
         n_gaussians=100,
         threshold=1e-5,
     ):
-        super().__init__(prior, model, n_gaussians=n_gaussians, threshold=threshold)
+        super().__init__(prior, model, device, n_gaussians=n_gaussians, threshold=threshold)
         self.model = model
         self.ratio = ratio
         self.nys_ratio = nys_ratio
-        self.utils = Utils()
+        self.device = device
+        self.utils = Utils(device)
         
     def pdf(self, X, var):
         if self.ratio == 0:
