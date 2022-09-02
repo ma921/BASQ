@@ -17,7 +17,7 @@ The minimal implementation of BASQ with PyTorch and GPyTorch.
 python3 main.py
 ```
 
-The example with Gaussian Mixture Likelihood (dim=3) will run.
+The example with Gaussian Mixture Likelihood (dim=10) will run.
 
 ## For developers
 You can select arbitrary kernels/priors/parameters on ./BASQ/_parametetrs.py
