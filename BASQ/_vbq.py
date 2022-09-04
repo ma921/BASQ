@@ -1,6 +1,6 @@
 import copy
 import torch
-from ._gp import update_gp, predict
+from ._gp import update_gp, predict, predictive_covariance
 from ._utils import Utils
 
 
@@ -110,6 +110,17 @@ class VanillaGP:
             rng=self.rng,
             train_lik=self.train_lik,
         )
+
+    def predictive_kernel(self, x, y):
+        """
+        Input:
+           - x: torch.tensor, x locations to be predicted
+           - y: torch.tensor, y locations to be predicted
+
+        Output:
+           - CLy: torch.tensor, the positive semi-definite Gram matrix of predictive variance
+        """
+        return predictive_covariance(x, y, self.model)
 
     def predict(self, x):
         """

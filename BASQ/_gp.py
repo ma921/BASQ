@@ -138,6 +138,31 @@ def predict(test_x, model):
         pred = model.likelihood(model(test_x))
     return pred.mean, pred.variance
 
+def get_cov_cache(model):
+    """
+    woodbury_inv = K(Xobs, Xobs)^(-1)
+    S @ S.T = woodbury_inv
+
+    Input:
+        - model: gpytorch.models, function of GP model, typically self.wsabi.model in _basq.py
+
+    Output:
+        - woodbury_inv: torch.tensor, the inverse of Gram matrix K(Xobs, Xobs)^(-1)
+        - Xobs: torch.tensor, the observed inputs X
+        - lik_var: torch.tensor, the GP likelihood noise variance
+    """
+    Xobs = model.train_inputs[0]
+    lik_var = model.likelihood.noise
+    try:
+        S = model.prediction_strategy.covar_cache
+    except AttributeError:
+        model.eval()
+        mean = Xobs[0].unsqueeze(0)
+        model(mean)
+        S = model.prediction_strategy.covar_cache
+    woodbury_inv = S @ S.T
+    return woodbury_inv, Xobs, lik_var
+
 def predictive_covariance(x, y, model):
     """
     Input:
@@ -148,10 +173,7 @@ def predictive_covariance(x, y, model):
     Output:
         - cov_xy: torch.tensor, predictive covariance matrix
     """
-    Xobs = model.train_inputs[0]
-    lik_var = model.likelihood.noise
-    woodbury_inv = model.covar_module.forward(Xobs, Xobs).inverse()
-
+    woodbury_inv, Xobs, lik_var = get_cov_cache(model)
     Kxy = model.covar_module.forward(x, y)
     KxX = model.covar_module.forward(x, Xobs)
     KXy = model.covar_module.forward(Xobs, y)

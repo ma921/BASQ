@@ -17,9 +17,9 @@ class Parameters:
            - device; torch.device, device, cpu or cuda
         """
         # BQ Modelling
-        bq_model = "wsabi"             # select a BQ model from ["wsabi", "vbq"]
-        sampler_type = "prior"         # select a sampler from ["uncertainty", "prior"]
-        kernel_type = "RBF"            # select a kernel from ["RBF", "Matern32", "Matern52"]
+        bq_model = "vbq"             # select a BQ model from ["wsabi", "vbq"]
+        sampler_type = "prior"   # select a sampler from ["uncertainty", "prior"]
+        kernel_type = "Matern32"            # select a kernel from ["RBF", "Matern32", "Matern52"]
 
         # WSABI modelling
         wsabi_type = "wsabim"          # select a wsabi type from ["wsabil", "wsabim"]
@@ -147,7 +147,7 @@ class Parameters:
                 rng=rng,
                 train_lik=train_lik,
             )
-            self.kernel = self.vbq.model.covar_module.forward
+            self.kernel = self.vbq.predictive_kernel
             self.predict_mean = self.vbq.predict_mean
             self.predict = self.vbq.predict
             self.update = self.vbq.update_gp
@@ -181,12 +181,12 @@ class Parameters:
         Output:
            - gp_kernel: gpytorch.kernels, function of GP kernel
         """
-        if kernel_type == "Matern32":
+        if kernel_type == "RBF":
+            gp_kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
+        elif kernel_type == "Matern32":
             gp_kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.MaternKernel(nu=1.5))
         elif kernel_type == "Matern52":
             gp_kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.MaternKernel(nu=2.5))
-        elif kernel_type == "RBF":
-            gp_kernel = gpytorch.kernels.ScaleKernel(gpytorch.kernels.RBFKernel())
         else:
             raise Exception("The given kernel_type is undefined.")
         return gp_kernel
