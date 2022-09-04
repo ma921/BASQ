@@ -7,6 +7,7 @@ The minimal implementation of BASQ with PyTorch and GPyTorch.
 - GPyTorch
 
 ## Features
+- fast batch Bayesian quadrature
 - GPU acceleration
 - Arbitrary kernel for Bayesian quadrature modelling
 - Arbitrary prior distribution for Bayesian inference
