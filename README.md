@@ -5,7 +5,6 @@ The minimal implementation of BASQ with PyTorch and GPyTorch.
 ## Prerequisite
 - PyTorch
 - GPyTorch
-- PyYAML
 
 ## Features
 - GPU acceleration
