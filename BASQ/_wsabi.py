@@ -1,6 +1,6 @@
 import copy
 import torch
-from ._gp import update_gp, predict
+from ._gp import update_gp, predict, predictive_covariance
 from ._utils import Utils
 from ._gaussian_calc import GaussianCalc
 
@@ -50,7 +50,7 @@ class WsabiGP:
         self.rng = rng
         self.train_lik = train_lik
 
-        self.jitter = 1e-6
+        self.jitter = 0  # 1e-6
         self.Y_unwarp = copy.deepcopy(Yobs)
         self.utils = Utils(device)
 
@@ -183,7 +183,7 @@ class WsabiGP:
         """
         mu_x, _ = predict(x, self.model)
         mu_y, _ = predict(y, self.model)
-        cov_xy = self.model.covar_module.forward(x, y)
+        cov_xy = predictive_covariance(x, y, self.model)
         CLy = mu_x.unsqueeze(1) * cov_xy * mu_y.unsqueeze(0)
 
         d = min(len(x), len(y))
@@ -201,7 +201,7 @@ class WsabiGP:
         """
         mu_x, _ = predict(x, self.model)
         mu_y, _ = predict(y, self.model)
-        cov_xy = self.model.covar_module.forward(x, y)
+        cov_xy = predictive_covariance(x, y, self.model)
         CLy = mu_x.unsqueeze(1) * cov_xy * mu_y.unsqueeze(0) + 0.5 * (cov_xy ** 2)
 
         d = min(len(x), len(y))

@@ -137,3 +137,26 @@ def predict(test_x, model):
     with torch.no_grad(), gpytorch.settings.fast_pred_var():
         pred = model.likelihood(model(test_x))
     return pred.mean, pred.variance
+
+def predictive_covariance(x, y, model):
+    """
+    Input:
+        - x: torch.tensor, inputs x
+        - y: torch.tensor, inputs y
+        - model: gpytorch.models, function of GP model.
+
+    Output:
+        - cov_xy: torch.tensor, predictive covariance matrix
+    """
+    Xobs = model.train_inputs[0]
+    lik_var = model.likelihood.noise
+    woodbury_inv = model.covar_module.forward(Xobs, Xobs).inverse()
+
+    Kxy = model.covar_module.forward(x, y)
+    KxX = model.covar_module.forward(x, Xobs)
+    KXy = model.covar_module.forward(Xobs, y)
+    cov_xy = Kxy - KxX @ woodbury_inv @ KXy
+    
+    d = min(len(x), len(y))
+    cov_xy[range(d), range(d)] = cov_xy[range(d), range(d)] + lik_var
+    return cov_xy
