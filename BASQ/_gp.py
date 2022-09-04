@@ -53,8 +53,6 @@ def set_gp(train_x, train_y, gp_kernel, device, lik=1e-10, rng=10, train_lik=Fal
     model = ExactGPModel(train_x, train_y, likelihood, gp_kernel)
     hypers = {
         'likelihood.noise_covar.noise': torch.tensor(lik),
-        'covar_module.base_kernel.lengthscale': torch.tensor(2),
-        'covar_module.outputscale': torch.tensor(2.),
     }
     model.initialize(**hypers)
     if not train_lik:
