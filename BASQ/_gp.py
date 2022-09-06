@@ -1,6 +1,6 @@
 import torch
 import gpytorch
-from BASQ._lbfgs import FullBatchLBFGS
+from ._lbfgs import FullBatchLBFGS
 from botorch.fit import fit_gpytorch_model
 from gpytorch.priors.torch_priors import GammaPrior
 
