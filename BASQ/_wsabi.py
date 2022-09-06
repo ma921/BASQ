@@ -20,6 +20,7 @@ class WsabiGP:
         lr=0.1,
         rng=10,
         train_lik=False,
+        optimiser="L-BFGS-B",
     ):
         """
         WSABI BQ modelling
@@ -39,6 +40,7 @@ class WsabiGP:
            - lr: float, the learning rate of Adam optimiser
            - rng: int, tne range coefficient of GP likelihood noise variance
            - train_like: bool, flag whether or not to update GP likelihood noise variance
+           - optimiser: string, select the optimiser ["L-BFGS-B", "Adam"]
         """
         self.gp_kernel = gp_kernel
         self.device = device
@@ -49,6 +51,7 @@ class WsabiGP:
         self.lr = lr
         self.rng = rng
         self.train_lik = train_lik
+        self.optimiser = optimiser
 
         self.jitter = 0  # 1e-6
         self.Y_unwarp = copy.deepcopy(Yobs)
@@ -65,6 +68,7 @@ class WsabiGP:
             lr=self.lr,
             rng=self.rng,
             train_lik=self.train_lik,
+            optimiser=self.optimiser,
         )
         self.setting(label)
         self.gauss = GaussianCalc(self.model, self.device)
@@ -154,6 +158,7 @@ class WsabiGP:
             lr=self.lr,
             rng=self.rng,
             train_lik=self.train_lik,
+            optimiser=self.optimiser,
         )
 
     def retrain_gp(self):
@@ -170,6 +175,7 @@ class WsabiGP:
             lr=self.lr,
             rng=self.rng,
             train_lik=self.train_lik,
+            optimiser=self.optimiser,
         )
 
     def wsabil_kernel(self, x, y):
@@ -304,5 +310,6 @@ class WsabiGP:
             lr=self.lr,
             rng=self.rng,
             train_lik=self.train_lik,
+            optimiser=self.optimiser,
         )
         return model_IS, uni_sampler

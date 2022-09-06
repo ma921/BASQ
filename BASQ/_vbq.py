@@ -17,6 +17,7 @@ class VanillaGP:
         lr=0.1,
         rng=10,
         train_lik=False,
+        optimiser="L-BFGS-B",
     ):
         """
         Input:
@@ -39,6 +40,7 @@ class VanillaGP:
         self.lr = lr
         self.rng = rng
         self.train_lik = train_lik
+        self.optimiser = optimiser
 
         self.jitter = 1e-6
         self.Y_unwarp = copy.deepcopy(Yobs)
@@ -55,6 +57,7 @@ class VanillaGP:
             lr=self.lr,
             rng=self.rng,
             train_lik=self.train_lik,
+            optimiser=self.optimiser,
         )
 
     def cat_observations(self, X, Y):
@@ -93,6 +96,7 @@ class VanillaGP:
             lr=self.lr,
             rng=self.rng,
             train_lik=self.train_lik,
+            optimiser=self.optimiser,
         )
 
     def retrain_gp(self):
@@ -109,6 +113,7 @@ class VanillaGP:
             lr=self.lr,
             rng=self.rng,
             train_lik=self.train_lik,
+            optimiser=self.optimiser,
         )
 
     def predictive_kernel(self, x, y):

@@ -18,7 +18,7 @@ class Parameters:
         """
         # BQ Modelling
         bq_model = "wsabi"             # select a BQ model from ["wsabi", "vbq"]
-        sampler_type = "uncertainty"   # select a sampler from ["uncertainty", "prior"]
+        sampler_type = "prior"         # select a sampler from ["uncertainty", "prior"]
         kernel_type = "RBF"            # select a kernel from ["RBF", "Matern32", "Matern52"]
 
         # WSABI modelling
@@ -26,6 +26,7 @@ class Parameters:
         alpha_factor = 1               # coefficient of alpha in WSABI modelling; alpha = 0.8 * min(y)
 
         # GP hyperparameter training with type-II MLE
+        optimiser="BoTorch"            # select the optimiser ["L-BFGS-B", "BoTorch", "Adam"]
         lik = 1e-10                    # centre value of GP likelihood noise.
         rng = 10                       # range of likelihood noise [lik/rng, lik*rng]
         train_lik = False              # flag whether or not to train likelihood noise. if False, the noise is fixed with lik
@@ -61,9 +62,19 @@ class Parameters:
         self.sampler_type = sampler_type
         self.check_compatibility(bq_model, sampler_type, kernel_type)
         gp_kernel = self.set_kernel(kernel_type)
-        self.set_model(bq_model, Xobs, Yobs, gp_kernel, wsabi_type, alpha_factor, lik, training_iter, thresh, lr, rng, train_lik)
+        self.set_model(bq_model, Xobs, Yobs, gp_kernel, wsabi_type, alpha_factor, lik, training_iter, thresh, lr, rng, train_lik, optimiser)
         self.set_sampler(sampler_type, sampling_method, prior, n_rec, nys_ratio, ratio, n_gaussians, threshold)
         self.set_quadrature(nys_ratio, int(n_rec * nys_ratio), int(quad_ratio * n_rec))
+        self.verbose(bq_model, sampler_type, kernel_type, sampling_method, optimiser)
+        
+    def verbose(self, bq_model, sampler_type, kernel_type, sampling_method, optimiser):
+        print(
+            "BQ model: " + bq_model
+            + " | kernel: " + kernel_type
+            + " | sampler: " + sampler_type
+            + " | sampling_method: " + sampling_method
+            + " | optimiser: " + optimiser
+        )
 
     def set_sampler(self, sampler_type, sampling_method, prior, n_rec, nys_ratio, ratio, n_gaussians, threshold):
         """
@@ -96,7 +107,7 @@ class Parameters:
         else:
             raise Exception("The given sampler_type is undefined.")
 
-    def set_model(self, bq_model, Xobs, Yobs, gp_kernel, wsabi_type, alpha_factor, lik, training_iter, thresh, lr, rng, train_lik):
+    def set_model(self, bq_model, Xobs, Yobs, gp_kernel, wsabi_type, alpha_factor, lik, training_iter, thresh, lr, rng, train_lik, optimiser):
         """
         Input:
            - bq_model: string, ["wsabi", "vbq"]
@@ -111,6 +122,7 @@ class Parameters:
            - lr: float, the learning rate of Adam optimiser
            - rng: int, tne range coefficient of GP likelihood noise variance
            - train_like: bool, flag whether or not to update GP likelihood noise variance
+           - optimiser: string, select the optimiser ["L-BFGS-B", "BoTorch", "Adam"]
         """
         if bq_model == "wsabi":
             self.wsabi = WsabiGP(
@@ -126,6 +138,7 @@ class Parameters:
                 lr=lr,
                 rng=rng,
                 train_lik=train_lik,
+                optimiser=optimiser,
             )
             self.kernel = self.wsabi.kernel
             self.predict_mean = self.wsabi.predict_mean
@@ -146,6 +159,7 @@ class Parameters:
                 lr=lr,
                 rng=rng,
                 train_lik=train_lik,
+                optimiser=optimiser,
             )
             self.kernel = self.vbq.predictive_kernel
             self.predict_mean = self.vbq.predict_mean
@@ -216,4 +230,3 @@ class Parameters:
         if not kernel_type == "RBF":
             if not bq_model == "vbq" and sampler_type == "prior":
                 raise Exception("Non-RBF kernel requires prior sampling with VBQ modelling.")
-        print("BQ model: " + bq_model + " | kernel: " + kernel_type + " | sampler: " + sampler_type)
