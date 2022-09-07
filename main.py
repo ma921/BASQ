@@ -38,34 +38,34 @@ def set_basq():
     """
     # device = torch.device('cpu')
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    num_dim = 10
-    mu_pi = torch.zeros(num_dim).to(device)
-    cov_pi = 2 * torch.eye(num_dim).to(device)
-    true_likelihood = GMM(num_dim, mu_pi, cov_pi, device)
+    num_dim = 10  # Number of dimensions of the true likelihood to be estimated
+    mu_pi = torch.zeros(num_dim).to(device)  # the mean vactor of Gaussian prior
+    cov_pi = 2 * torch.eye(num_dim).to(device)  # the covariance matrix of Gaussian prior
+    true_likelihood = GMM(num_dim, mu_pi, cov_pi, device)  # true likelihood to be estimated
 
     # BQ modelling
-    train_x = torch.rand(2, num_dim).to(device)
-    train_y = true_likelihood(train_x)
-    prior = MultivariateNormal(mu_pi, cov_pi)
+    train_x = torch.rand(2, num_dim).to(device)  # initial locations
+    train_y = true_likelihood(train_x)  # initial observations
+    prior = MultivariateNormal(mu_pi, cov_pi)  # Gaussian prior distribution
 
     # evaluation setting
-    Z_true = 1
-    test_x = prior.sample(sample_shape=torch.Size([10000]))
-    metric = KLdivergence(prior, test_x, Z_true, device, true_likelihood)
+    Z_true = 1  # the analytical integral value of marginal likelihood (a.k.a. evidence)
+    test_x = prior.sample(sample_shape=torch.Size([10000]))  # test data locations
+    metric = KLdivergence(prior, test_x, Z_true, device, true_likelihood)  # metric to evaluate posterior
     return prior, train_x, train_y, true_likelihood, metric, device
 
 
 if __name__ == "__main__":
     torch.manual_seed(0)
-    n_batch = 10           # the number of BASQ iteration
+    n_batch = 10  # the number of BASQ iteration. Total number of queries is n_batch * batch_size
 
     prior, train_x, train_y, true_likelihood, metric, device = set_basq()
     basq = BASQ(
-        train_x,
-        train_y,
-        prior,
-        true_likelihood,
-        device,
+        train_x,  # initial locations
+        train_y,  # initial observations
+        prior,  # Gaussian prior distribution
+        true_likelihood,  # true likelihood to be estimated
+        device,  # cpu or cuda
     )
 
     results = basq.run(n_batch)
@@ -75,6 +75,6 @@ if __name__ == "__main__":
         + " [s]\n"
         + "final E[Z|y]: " + str(results[-1, 1].item()) + "\n"
         + "final Var[Z|y]: " + str(results[-1, 2].item()) + "\n"
-        + "logMAE: " + str(torch.log(torch.tensor(abs(results[-1][1] - metric.Z_true))).item()) + "\n"
-        + "logKL: " + str(torch.log(metric(basq, results[-1][1])).item()) + "\n"
+        + "Evidence logMAE: " + str(torch.log(torch.tensor(abs(results[-1][1] - metric.Z_true))).item()) + "\n"
+        + "Posterior logKL: " + str(torch.log(metric(basq, results[-1][1])).item()) + "\n"
     )
