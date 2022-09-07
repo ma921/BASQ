@@ -68,7 +68,13 @@ class Utils:
             cov = torch.nan_to_num(cov)
             cov = torch.sqrt(cov * cov.T)
             if not self.is_psd(cov):
-                cov = cov + torch.eye(cov.size(0)).to(self.device)
+                n_dim = cov.size(0)
+                i = 1
+                r_increment = 2
+                jitter = torch.ones(n_dim).to(self.device) * 1e-5
+                while not utils.is_psd(cov):
+                    cov[range(n_dim), range(n_dim)] += jitter
+                    jitter *= r_increment
             return MultivariateNormal(mu, cov)
 
     def safe_mvn_prob(self, mu, cov, X):
