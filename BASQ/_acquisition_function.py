@@ -8,7 +8,7 @@ class SquareRootAcquisitionFunction(GaussianCalc):
         """
         Inherited the functions from GaussianCalc.
 
-        Input:
+        Args:
         - prior: torch.distributions, prior distribution
         - device: torch.device, cpu or cuda
         """
@@ -19,7 +19,7 @@ class SquareRootAcquisitionFunction(GaussianCalc):
 
     def update(self, model):
         """
-        Input:
+        Args:
         - model: gpytorch.models, function of GP model, typically model = self.wsabi.model in _basq.py
         """
         self.parameters_extraction(model)
@@ -33,7 +33,7 @@ class SquareRootAcquisitionFunction(GaussianCalc):
         See details on factorisation trick and sparse GMM sampler in Sapplementary.
         https://arxiv.org/abs/2206.04734
 
-        Output:
+        Returns:
             - w1: torch.tensor, the weight of prior distribution
             - w2: torch.tensor, the weights of other normal distributions
             - mu2: torch.tensor, the mean vectors of other normal distributions
@@ -63,10 +63,10 @@ class SquareRootAcquisitionFunction(GaussianCalc):
 
     def joint_pdf(self, x):
         """
-        Input:
+        Args:
             - x: torch.tensor, inputs. torch.Size(n_data, n_dims)
 
-        Output:
+        Returns:
             - first/first+second: torch.tensor, the values of probability density function of approximated A(x)
         """
         d_x = len(x)
@@ -98,10 +98,10 @@ class SquareRootAcquisitionFunction(GaussianCalc):
 
     def sampling(self, n):
         """
-        Input:
+        Args:
             - n: int, number of samples to be sampled.
 
-        Output:
+        Returns:
             - samplesA/samplesAA: torch.tensor, the samples from approximated A(x)
         """
         cntA = (n * self.wA).type(torch.int)
@@ -122,7 +122,7 @@ class SquareRootAcquisitionFunction(GaussianCalc):
 
     def sparseGMM_mean(self):
         """
-        Output:
+        Returns:
             - weights: torch.tensor, the weight of approximated GP mean functions
             - mu_mean: torch.tensor, the mean vectors of approximated GP mean functions
             - sig_prime: torch.tensor, the covariance matrix of approximated GP mean functions
@@ -166,10 +166,10 @@ class SquareRootAcquisitionFunction(GaussianCalc):
 
     def joint_pdf_mean(self, x):
         """
-        Input:
+        Args:
             - x: torch.tensor, inputs. torch.Size(n_data, n_dims)
 
-        Output:
+        Returns:
             - first/first+second: torch.tensor, the values of probability density function of approximated GP mean functions
         """
         d_x = len(x)
@@ -189,10 +189,10 @@ class SquareRootAcquisitionFunction(GaussianCalc):
 
     def sampling_mean(self, n):
         """
-        Input:
+        Args:
             - n: int, number of samples to be sampled.
 
-        Output:
+        Returns:
             - samples: torch.tensor, the samples from approximated GP mean functions
         """
         cnts = (n * self.w_mean).type(torch.int)

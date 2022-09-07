@@ -7,7 +7,7 @@ from torch.distributions.uniform import Uniform
 class GaussianCalc:
     def __init__(self, prior, device):
         """
-        Input:
+        Args:
             - prior; torch.distributions, prior distribution.
             - device; torch.device, device, cpu or cuda
         """
@@ -22,10 +22,10 @@ class GaussianCalc:
         woodbury_inv = K(Xobs, Xobs)^(-1)
         S @ S.T = woodbury_inv
 
-        Input:
+        Args:
             - model: gpytorch.models, function of GP model, typically self.wsabi.model in _basq.py
 
-        Output:
+        Returns:
             - woodbury_vector: torch.tensor, Woodbury vector, K(Xobs, Xobs)^(-1) @ Yobs
             - woodbury_inv: torch.tensor, the inverse of Gram matrix K(Xobs, Xobs)^(-1)
         """
@@ -55,11 +55,11 @@ class GaussianCalc:
         approximate the GP-modelled likelihood by a unimodal multivariate normal distribution.
         https://math.stackexchange.com/questions/195911/calculation-of-the-covariance-of-gaussian-mixtures
 
-        Input:
+        Args:
             - model: gpytorch.models, function of GP model, typically self.wsabi.model in _basq.py
             - alpha: torch.tensor, the alpha hyperparameter in WSABI-BQ modelling, ell = alpha + 0.5 ell^2
 
-        Output:
+        Returns:
             - mvn_pi_max: torch.distributions, mutlivariate normal distribution of optimised prior
         """
         self.parameters_extraction(model)
@@ -83,11 +83,11 @@ class GaussianCalc:
 
     def uniform_transformation(self, model, Y_unwarp):
         """
-        Input:
+        Args:
             - model: gpytorch.models, function of GP model, typically self.wsabi.model in _basq.py
             - Y_unwarp: torch.tensor, the raw observations without WSABI warping.
 
-        Output:
+        Returns:
             - Xobs_uni: torch.tensor, the inputs transformed into uniform prior distribution
             - Yobs_uni: torch.tensor, the observation transformed into uniform prior distribution
             - uni_sampler: function of samples = function(n_samples), a uniform distribution sampler

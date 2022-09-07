@@ -7,7 +7,7 @@ from ._acquisition_function import SquareRootAcquisitionFunction
 class PriorSampler:
     def __init__(self, prior, n_rec, nys_ratio, device):
         """
-        Input:
+        Args:
            - prior: torch.distributions, prior distribution
            - n_rec: int, number of subsamples for empirical measure of kernel recomnbination
            - nys_ratio: float, subsubsampling ratio for Nystrom.
@@ -20,10 +20,10 @@ class PriorSampler:
 
     def __call__(self, n_rec):
         """
-        Input:
+        Args:
            - n_rec: int, number of subsamples for empirical measure of kernel recomnbination
 
-        Output:
+        Returns:
            - pts_nys: torch.tensor, subsamples for low-rank approximation via Nyström method
            - pts_rec: torch.tensor, subsamples for empirical measure of kernel recomnbination
            - w_IS: torch.tensor, weights for importance sampling if pts_rec is not sampled from the prior
@@ -49,7 +49,7 @@ class UncertaintySampler(SquareRootAcquisitionFunction):
         threshold=1e-5,
     ):
         """
-        Input:
+        Args:
            - prior: torch.distributions, prior distribution.
            - model: gpytorch.models, function of GP model
            - n_rec: int, subsampling size for kernel recombination
@@ -71,10 +71,10 @@ class UncertaintySampler(SquareRootAcquisitionFunction):
 
     def pdf(self, X):
         """
-        Input:
+        Args:
            - X: torch.tensor, inputs
 
-        Output:
+        Returns:
            - pdf: the value at given X of probability density function of approximated sparse Gaussian Mixture Model (GMM)
         """
         if self.ratio == 0:
@@ -91,12 +91,12 @@ class UncertaintySampler(SquareRootAcquisitionFunction):
         Sequentail Importance Resample (SIR).
         Resample from the weighted samples via importance sampling.
 
-        Input:
+        Args:
            - X: torch.tensor, inputs
            - weights: torch.tensor, weights for importance sampling. This is not necessarily required to be normalised.
            - n_return: torch.tensor, inputs, number of samples to be returned.
 
-        Output:
+        Returns:
            - samples: resampled samples.
         """
         draw = torch.multinomial(weights, n_return)
@@ -111,10 +111,10 @@ class UncertaintySampler(SquareRootAcquisitionFunction):
         samples for Nystrom should be sampled from f(x), thus we adopt SIR.
         pts_nys <- SIR(pts_rec, weights) is equivalent to be sampled from f(x).
 
-        Input:
+        Args:
            - n: int, number of samples to be returned
 
-        Output:
+        Returns:
            - pts_nys: torch.tensor, subsamples for low-rank approximation via Nyström method
            - pts_rec: torch.tensor, subsamples for empirical measure of kernel recomnbination
            - w_IS: torch.tensor, weights for importance sampling if pts_rec is not sampled from the prior
@@ -147,11 +147,11 @@ class UncertaintySampler(SquareRootAcquisitionFunction):
                               f(x) = |m(x)| π(x),
         weights w_IS = f(x) / g(x)
 
-        Input:
+        Args:
            - n_super: int, number of supersamples for SIR
            - n: int, number of samples to be returned
 
-        Output:
+        Returns:
            - samples: resampled samples.
         """
         X_pi = self.sampling_mean(n_super)
@@ -170,11 +170,11 @@ class UncertaintySampler(SquareRootAcquisitionFunction):
                               f(x) = C(x)π(x),
         weights w_IS = f(x) / g(x)
 
-        Input:
+        Args:
            - n_super: int, number of supersamples for SIR
            - n: int, number of samples to be returned
 
-        Output:
+        Returns:
            - samples: resampled samples.
         """
         X_A = self.sampling(n_super)
@@ -191,10 +191,10 @@ class UncertaintySampler(SquareRootAcquisitionFunction):
         """
         weights w_IS = f(x) / g(x)
 
-        Input:
+        Args:
            - pts_rec: torch.tensor, subsamples for empirical measure of kernel recomnbination
 
-        Output:
+        Returns:
            - w_IS: torch.tensor, weights for importance sampling if pts_rec is not sampled from the prior
         """
         mean_rec, var_rec = predict(pts_rec, self.model)
@@ -223,10 +223,10 @@ class UncertaintySampler(SquareRootAcquisitionFunction):
         If r = 0, this simply samples from f(x) = |m(x)| π(x).
         If r = 1, this becomes pure uncertainty sampling.
 
-        Input:
+        Args:
            - n: int, number of samples to be returned
 
-        Output:
+        Returns:
            - pts_nys: torch.tensor, subsamples for low-rank approximation via Nyström method
            - pts_rec: torch.tensor, subsamples for empirical measure of kernel recomnbination
            - w_IS: torch.tensor, weights for importance sampling if pts_rec is not sampled from the prior
@@ -260,10 +260,10 @@ class UncertaintySampler(SquareRootAcquisitionFunction):
 
     def __call__(self, n):
         """
-        Input:
+        Args:
            - n: int, number of samples to be returned
 
-        Output:
+        Returns:
            - pts_nys: torch.tensor, subsamples for low-rank approximation via Nyström method
            - pts_rec: torch.tensor, subsamples for empirical measure of kernel recomnbination
            - w_IS: torch.tensor, weights for importance sampling if pts_rec is not sampled from the prior

@@ -28,7 +28,7 @@ class WsabiGP:
         This also provides the prediction and kernel of WSABI GP.
         The modelling of WSABI-L and WSABI-M can be easily switched by changing "label".
 
-        Input:
+        Args:
            - Xobs: torch.tensor, X samples, X belongs to prior measure.
            - Yobs: torch.tensor, Y observations, Y = true_likelihood(X).
            - gp_kernel: gpytorch.kernels, GP kernel function
@@ -75,7 +75,7 @@ class WsabiGP:
 
     def setting(self, label):
         """
-        Input:
+        Args:
            - label: string, the wsabi type, ["wsabil", "wsabim"]
         """
         if label == "wsabil":
@@ -89,30 +89,30 @@ class WsabiGP:
 
     def warp_y(self, y):
         """
-        Input:
+        Args:
            - y: torch.tensor, observations
 
-        Output:
+        Returns:
            - y: torch.tensor, warped observations
         """
         return torch.sqrt(2 * (y - self.alpha))
 
     def unwarp_y(self, y):
         """
-        Input:
+        Args:
            - y: torch.tensor, warped observations
 
-        Output:
+        Returns:
            - y: torch.tensor, unwarped observations
         """
         return self.alpha + 0.5 * (y ** 2)
 
     def process_y_warping(self, y):
         """
-        Input:
+        Args:
            - y: torch.tensor, observations
 
-        Output:
+        Returns:
            - y: torch.tensor, warped observations that contains no anomalies and the updated alpha hyperparameter.
         """
         y = self.utils.remove_anomalies(y)
@@ -122,11 +122,11 @@ class WsabiGP:
 
     def cat_observations(self, X, Y):
         """
-        Input:
+        Args:
            - X: torch.tensor, X samples to be added to the existing data Xobs
            - Y: torch.tensor, unwarped Y observations to be added to the existing data Yobs
 
-        Output:
+        Returns:
            - Xall: torch.tensor, X samples that contains all samples
            - Yall: torch.tensor, warped Y observations that contains all observations
         """
@@ -142,7 +142,7 @@ class WsabiGP:
 
     def update_wsabi_gp(self, X, Y):
         """
-        Input:
+        Args:
            - X: torch.tensor, X samples to be added to the existing data Xobs
            - Y: torch.tensor, unwarped Y observations to be added to the existing data Yobs
         """
@@ -178,13 +178,26 @@ class WsabiGP:
             optimiser=self.optimiser,
         )
 
+    def memorise_parameters(self):
+        self.likelihood_memory = copy.deepcopy(torch.tensor(self.model.likelihood.noise.item()))
+        self.outputsacle_memory = copy.deepcopy(torch.tensor(self.model.covar_module.outputscale.item()))
+        self.lengthscale_memory = copy.deepcopy(torch.tensor(self.model.covar_module.base_kernel.lengthscale.item()))
+
+    def remind_parameters(self):
+        hypers = {
+            'likelihood.noise_covar.noise': self.likelihood_memory,
+            'covar_module.outputscale': self.outputsacle_memory,
+            'covar_module.base_kernel.lengthscale': self.lengthscale_memory,
+        }
+        self.model.initialize(**hypers)
+
     def wsabil_kernel(self, x, y):
         """
-        Input:
+        Args:
            - x: torch.tensor, x locations to be predicted
            - y: torch.tensor, y locations to be predicted
 
-        Output:
+        Returns:
            - CLy: torch.tensor, the positive semi-definite Gram matrix of WSABI-L variance
         """
         mu_x, _ = predict(x, self.model)
@@ -198,11 +211,11 @@ class WsabiGP:
 
     def wsabim_kernel(self, x, y):
         """
-        Input:
+        Args:
            - x: torch.tensor, x locations to be predicted
            - y: torch.tensor, y locations to be predicted
 
-        Output:
+        Returns:
            - CLy: torch.tensor, the positive semi-definite Gram matrix of WSABI-M variance
         """
         mu_x, _ = predict(x, self.model)
@@ -216,10 +229,10 @@ class WsabiGP:
 
     def wsabil_predict(self, x):
         """
-        Input:
+        Args:
            - x: torch.tensor, x locations to be predicted
 
-        Output:
+        Returns:
            - mu: torch.tensor, unwarped predictive mean at given locations x.
            - var: torch.tensor, unwarped predictive variance at given locations x.
         """
@@ -230,10 +243,10 @@ class WsabiGP:
 
     def wsabim_predict(self, x):
         """
-        Input:
+        Args:
            - x: torch.tensor, x locations to be predicted
 
-        Output:
+        Returns:
            - mu: torch.tensor, unwarped predictive mean at given locations x.
            - var: torch.tensor, unwarped predictive variance at given locations x.
         """
@@ -244,10 +257,10 @@ class WsabiGP:
 
     def wsabil_mean_predict(self, x):
         """
-        Input:
+        Args:
            - x: torch.tensor, x locations to be predicted
 
-        Output:
+        Returns:
            - mu: torch.tensor, unwarped predictive mean at given locations x.
         """
         mu_warp, _ = predict(x, self.model)
@@ -256,10 +269,10 @@ class WsabiGP:
 
     def wsabim_mean_predict(self, x):
         """
-        Input:
+        Args:
            - x: torch.tensor, x locations to be predicted
 
-        Output:
+        Returns:
            - mu: torch.tensor, unwarped predictive mean at given locations x.
         """
         mu_warp, var_warp = predict(x, self.model)
@@ -273,7 +286,7 @@ class WsabiGP:
         The maximisation of posterior can be achieved when prior is fitted to likelihood.
         Such calculation can be done analytically.
 
-        Output:
+        Returns:
             - mvn_pi_max: torch.distributions, mutlivariate normal distribution of optimised prior
         """
         return self.gauss.unimodal_approximation(self.model, self.alpha)
@@ -285,10 +298,10 @@ class WsabiGP:
         ∫l(x)π(x) = ∫l(x)π(x)/g(x) g(x)dx = ∫l'(x)g(x)dx,
         where π(x) is the uniform prior, g(x) is the Gaussian proposal distribution.
 
-        Input:
+        Args:
             - prior: torch.distributions, prior distribution
 
-        Output:
+        Returns:
             - model_IS: gpytorch.models, function of GP model which is transformed into uniform distribution
             - uni_sampler: function of samples = function(n_samples), a uniform distribution sampler
         """

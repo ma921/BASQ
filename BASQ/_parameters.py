@@ -9,7 +9,7 @@ from ._vbq import VanillaGP
 class Parameters:
     def __init__(self, Xobs, Yobs, prior, true_likelihood, device):
         """
-        Input:
+        Args:
            - Xobs; torch.tensor, X samples, X belongs to prior measure.
            - Yobs; torch.tensor, Y observations, Y = true_likelihood(X).
            - prior; torch.distributions, prior distribution.
@@ -17,8 +17,8 @@ class Parameters:
            - device; torch.device, device, cpu or cuda
         """
         # BQ Modelling
-        bq_model = "wsabi"             # select a BQ model from ["wsabi", "vbq"]
-        sampler_type = "prior"         # select a sampler from ["uncertainty", "prior"]
+        bq_model = "wsabi"             # select a BQ model from ["wsabi", "vbq"], vbq stands for Vanilla BQ
+        sampler_type = "uncertainty"   # select a sampler from ["uncertainty", "prior"]
         kernel_type = "RBF"            # select a kernel from ["RBF", "Matern32", "Matern52"]
 
         # WSABI modelling
@@ -26,7 +26,7 @@ class Parameters:
         alpha_factor = 1               # coefficient of alpha in WSABI modelling; alpha = 0.8 * min(y)
 
         # GP hyperparameter training with type-II MLE
-        optimiser="BoTorch"            # select the optimiser ["L-BFGS-B", "BoTorch", "Adam"]
+        optimiser = "BoTorch"          # select a optimiser from ["L-BFGS-B", "BoTorch", "Adam"], BoTorch is the slowest but the most accurate
         lik = 1e-10                    # centre value of GP likelihood noise.
         rng = 10                       # range of likelihood noise [lik/rng, lik*rng]
         train_lik = False              # flag whether or not to train likelihood noise. if False, the noise is fixed with lik
@@ -66,7 +66,7 @@ class Parameters:
         self.set_sampler(sampler_type, sampling_method, prior, n_rec, nys_ratio, ratio, n_gaussians, threshold)
         self.set_quadrature(nys_ratio, int(n_rec * nys_ratio), int(quad_ratio * n_rec))
         self.verbose(bq_model, sampler_type, kernel_type, sampling_method, optimiser)
-        
+
     def verbose(self, bq_model, sampler_type, kernel_type, sampling_method, optimiser):
         print(
             "BQ model: " + bq_model
@@ -78,7 +78,7 @@ class Parameters:
 
     def set_sampler(self, sampler_type, sampling_method, prior, n_rec, nys_ratio, ratio, n_gaussians, threshold):
         """
-        Input:
+        Args:
            - sampler_type; string, ["uncertainty", "prior"]
            - sampling_method; string, ["exact", "approx"]
            - prior: torch.distributions, prior distribution.
@@ -109,7 +109,7 @@ class Parameters:
 
     def set_model(self, bq_model, Xobs, Yobs, gp_kernel, wsabi_type, alpha_factor, lik, training_iter, thresh, lr, rng, train_lik, optimiser):
         """
-        Input:
+        Args:
            - bq_model: string, ["wsabi", "vbq"]
            - Xobs: torch.tensor, X samples, X belongs to prior measure.
            - Yobs: torch.tensor, Y observations, Y = true_likelihood(X).
@@ -171,7 +171,7 @@ class Parameters:
 
     def set_quadrature(self, nys_ratio, n_nys, n_quad):
         """
-        Input:
+        Args:
            - nys_ratio: float, subsubsampling ratio for Nystrom.
            - n_nys: int, number of Nystrom samples; int(nys_ratio * n_rec)
            - n_quad: int, number of kernel recombination subsamples; int(quad_ratio * n_rec)
@@ -189,10 +189,10 @@ class Parameters:
 
     def set_kernel(self, kernel_type):
         """
-        Input:
+        Args:
            - kernel_type: string, ["RBF", "Matern32", "Matern52"]
 
-        Output:
+        Returns:
            - gp_kernel: gpytorch.kernels, function of GP kernel
         """
         if kernel_type == "RBF":
@@ -207,7 +207,7 @@ class Parameters:
 
     def check_compatibility(self, bq_model, sampler_type, kernel_type):
         """
-        Input:
+        Args:
            - bq_model: string, ["wsabi", "vbq"]
            - sampler_type; string, ["uncertainty", "prior"]
            - kernel_type: string, ["RBF", "Matern32", "Matern52"]

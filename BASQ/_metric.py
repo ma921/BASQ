@@ -4,7 +4,7 @@ import torch
 class KLdivergence:
     def __init__(self, prior, test_data, Z_true, device, true_function):
         """
-        Input:
+        Args:
             - prior: torch.distributions, prior distribution
             - test_data: torch.tensor, samples for evaluation, sampled from prior
             - Z_true: float, the true evidence.
@@ -19,11 +19,11 @@ class KLdivergence:
 
     def __call__(self, basq_model, EZy):
         """
-        Input:
+        Args:
             - basq_mode: gpytorch.models, the trained BQ model
             - EZy: float, the estimated evidence
 
-        Output:
+        Returns:
             - KL: torch.tensor, the Kullback-Leibler divergence between true posterior and estimated posterior
         """
         KL = torch.zeros(len(self.test_data)).to(self.device)

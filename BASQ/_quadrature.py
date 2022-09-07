@@ -6,7 +6,7 @@ from ._rchq import recombination
 class KernelQuadrature:
     def __init__(self, n_rec, n_nys, n_quad, batch_size, sampler, kernel, device, mean_predict):
         """
-        Input:
+        Args:
            - n_rec: int, subsampling size for kernel recombination
            - nys_ratio: float, subsubsampling ratio for Nystrom.
            - n_nys: int, number of Nystrom samples; int(nys_ratio * n_rec)
@@ -28,14 +28,14 @@ class KernelQuadrature:
 
     def rchq(self, pts_nys, pts_rec, w_IS, batch_size, kernel):
         """
-        Input:
+        Args:
             - pts_nys: torch.tensor, subsamples for low-rank approximation via Nyström method
             - pts_rec: torch.tensor, subsamples for empirical measure of kernel recomnbination
             - w_IS: torch.tensor, weights for importance sampling if pts_rec is not sampled from the prior
             - batch_size: int, batch size
             - kernel: function of covariance_matrix = function(X, Y). Positive semi-definite Gram matrix (a.k.a. kernel)
 
-        Output:
+        Returns:
             - x: torch.tensor, the sparcified samples from pts_rec. The number of samples are determined by self.batch_size
             - w: torch.tensor, the positive weights for kernel quadrature as discretised summation.
         """
@@ -52,7 +52,7 @@ class KernelQuadrature:
 
     def quadrature(self):
         """
-        Output:
+        Returns:
             - EZy: float, the mean of the evidence
             - VarZy: float, the variance of the evidence
         """
@@ -65,10 +65,10 @@ class KernelQuadrature:
 
     def prior_max(self, mvn_max):
         """
-        Input:
+        Args:
             - mvn_max: torch.distributions, mutlivariate normal distribution of optimised prior distribution
 
-        Output:
+        Returns:
             - EZy_prior: float, the mean of the evidence when the prior is optimised to maximise the evidence
             - VarZy_prior: float, the variance of the evidence when the prior is optimised to maximise the evidence
         """
@@ -85,12 +85,12 @@ class KernelQuadrature:
 
     def uniform_trans(self, model_IS, uni_sampler):
         """
-        Input:
+        Args:
             - model_IS: gpytorch.models, function of GP model that assumes that
                         prior is uniform distribution transformed via importance sampling
             - uni_sampler: function of samples = function(n_samples), uniform distribution sampler
 
-        Output:
+        Returns:
             - EZy_uni float, the mean of the evidence when the prior is transformed into uniform distribution
             - VarZy_uni: float, the variance of the evidence when the prior is transformed into uniform distribution
         """

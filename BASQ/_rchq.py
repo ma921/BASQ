@@ -10,7 +10,7 @@ def recombination(
     init_weights=0,  # initial weights of the sample for recombination
 ):
     """
-    Input:
+    Args:
         - pts_nys: torch.tensor, subsamples for low-rank approximation via Nyström method
         - pts_rec: torch.tensor, subsamples for empirical measure of kernel recomnbination
         - num_pts: int, number of samples finally returned. In BASQ context, this is equivalent to batch size
@@ -18,7 +18,7 @@ def recombination(
         - device: torch.device, cpu or cuda
         - init_weights: torch.tensor, weights for importance sampling if pts_rec is not sampled from the prior
 
-    Output:
+    Returns:
         - x: torch.tensor, the sparcified samples from pts_rec. The number of samples are determined by self.batch_size
         - w: torch.tensor, the positive weights for kernel quadrature as discretised summation.
     """

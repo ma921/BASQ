@@ -6,7 +6,7 @@ from torch.distributions.multivariate_normal import MultivariateNormal
 class Utils:
     def __init__(self, device):
         """
-        Input:
+        Args:
            - device: torch.device, cpu or cuda
         """
         self.eps = -torch.sqrt(torch.tensor(torch.finfo().max)).item()
@@ -15,10 +15,10 @@ class Utils:
 
     def remove_anomalies(self, y):
         """
-        Input:
+        Args:
            - y: torch.tensor, observations
 
-        Output:
+        Returns:
            - y: torch.tensor, observations whose anomalies have been removed.
         """
         y[y.isnan()] = self.eps
@@ -28,12 +28,12 @@ class Utils:
 
     def remove_anomalies_uniform(self, X, uni_min, uni_max):
         """
-        Input:
+        Args:
            - X: torch.tensor, inputs
            - uni_min: torch.tensor, the minimum limit values of uniform distribution
            - uni_max: torch.tensor, the maximum limit values of uniform distribution
 
-        Output:
+        Returns:
            - idx: bool, indices where the inputs X do not exceed the min-max limits
         """
         logic = torch.sum(torch.stack([torch.logical_or(
@@ -44,21 +44,21 @@ class Utils:
 
     def is_psd(self, mat):
         """
-        Input:
+        Args:
            - mat: torch.tensor, symmetric matrix
 
-        Output:
+        Returns:
            - flag: bool, flag to judge whether or not the given matrix is positive semi-definite
         """
         return bool((mat == mat.T).all() and (torch.eig(mat)[0][:, 0] >= 0).all())
 
     def safe_mvn_register(self, mu, cov):
         """
-        Input:
+        Args:
            - mu: torch.tensor, mean vector of multivariate normal distribution
            - cov: torch.tensor, covariance matrix of multivariate normal distribution
 
-        Output:
+        Returns:
            - mvn: torch.distributions, function of multivariate normal distribution
         """
         if self.is_psd(cov):
@@ -73,12 +73,12 @@ class Utils:
 
     def safe_mvn_prob(self, mu, cov, X):
         """
-        Input:
+        Args:
            - mu: torch.tensor, mean vector of multivariate normal distribution
            - cov: torch.tensor, covariance matrix of multivariate normal distribution
            - X: torch.tensor, the locations that we wish to calculate the probability density values
 
-        Output:
+        Returns:
            - pdf: torch.tensor, the probability density values at given locations X.
         """
         mvn = self.safe_mvn_register(mu, cov)

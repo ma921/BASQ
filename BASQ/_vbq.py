@@ -20,7 +20,7 @@ class VanillaGP:
         optimiser="L-BFGS-B",
     ):
         """
-        Input:
+        Args:
            - Xobs: torch.tensor, X samples, X belongs to prior measure.
            - Yobs: torch.tensor, Y observations, Y = true_likelihood(X).
            - gp_kernel: gpytorch.kernels, GP kernel function
@@ -62,11 +62,11 @@ class VanillaGP:
 
     def cat_observations(self, X, Y):
         """
-        Input:
+        Args:
            - X: torch.tensor, X samples to be added to the existing data Xobs
            - Y: torch.tensor, Y observations to be added to the existing data Yobs
 
-        Output:
+        Returns:
            - Xall: torch.tensor, X samples that contains all samples
            - Yall: torch.tensor, Y observations that contains all observations
         """
@@ -80,7 +80,7 @@ class VanillaGP:
 
     def update_gp(self, X, Y):
         """
-        Input:
+        Args:
            - X: torch.tensor, X samples to be added to the existing data Xobs
            - Y: torch.tensor, Y observations to be added to the existing data Yobs
         """
@@ -118,21 +118,21 @@ class VanillaGP:
 
     def predictive_kernel(self, x, y):
         """
-        Input:
+        Args:
            - x: torch.tensor, x locations to be predicted
            - y: torch.tensor, y locations to be predicted
 
-        Output:
+        Args:
            - CLy: torch.tensor, the positive semi-definite Gram matrix of predictive variance
         """
         return predictive_covariance(x, y, self.model)
 
     def predict(self, x):
         """
-        Input:
+        Args:
            - x: torch.tensor, x locations to be predicted
 
-        Output:
+        Returns:
            - mu: torch.tensor, predictive mean at given locations x.
            - var: torch.tensor, predictive variance at given locations x.
         """
@@ -141,10 +141,10 @@ class VanillaGP:
 
     def predict_mean(self, x):
         """
-        Input:
+        Args:
            - x: torch.tensor, x locations to be predicted
 
-        Output:
+        Returns:
            - mu: torch.tensor, predictive mean at given locations x.
         """
         mu, _ = predict(x, self.model)

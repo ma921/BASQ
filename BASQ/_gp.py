@@ -1,13 +1,15 @@
 import torch
+import warnings
 import gpytorch
 from ._lbfgs import FullBatchLBFGS
 from botorch.fit import fit_gpytorch_model
 from gpytorch.priors.torch_priors import GammaPrior
 
+
 class ExactGPModel(gpytorch.models.ExactGP):
     def __init__(self, train_x, train_y, likelihood, gp_kernel):
         """
-        Input:
+        Args:
             - train_x: torch.tensor, inputs. torch.Size(n_data, n_dims)
             - train_y: torch.tensor, observations
             - likelihood: gpytorch.likelihoods, GP likelihood model
@@ -19,10 +21,10 @@ class ExactGPModel(gpytorch.models.ExactGP):
 
     def forward(self, x):
         """
-        Input:
+        Args:
             - x: torch.tensor, inputs. torch.Size(n_data, n_dims)
 
-        Output:
+        Returns:
             - torch.distributions, predictive posterior distribution at given x
         """
         mean_x = self.mean_module(x)
@@ -38,7 +40,7 @@ def set_gp(train_x, train_y, gp_kernel, device, lik=1e-10, rng=10, train_lik=Fal
     So, setting interval constraints keeps the likelihood noise variance within a safe area.
     Otherwise, GP could confuse the meaningful multimodal peaks of true_likelihood as noise.
 
-    Input:
+    Args:
         - train_x: torch.tensor, inputs. torch.Size(n_data, n_dims)
         - train_y: torch.tensor, observations
         - gp_kernel: gpytorch.kernels, GP kernel model
@@ -47,18 +49,18 @@ def set_gp(train_x, train_y, gp_kernel, device, lik=1e-10, rng=10, train_lik=Fal
         - rng: int, tne range coefficient of GP likelihood noise variance
         - train_like: bool, flag whether or not to update GP likelihood noise variance
 
-    Output:
+    Returns:
         - model: gpytorch.models, function of GP model.
     """
     likelihood = gpytorch.likelihoods.GaussianLikelihood()
     likelihood.noise_covar.register_constraint("raw_noise", gpytorch.constraints.Interval(lik / rng, lik * rng))
     model = ExactGPModel(train_x, train_y, likelihood, gp_kernel)
-    model.covar_module.base_kernel.lengthscale_prior=GammaPrior(3.0, 6.0)
-    model.covar_module.outputscale_prior=GammaPrior(2.0, 0.15)
+    model.covar_module.base_kernel.lengthscale_prior = GammaPrior(3.0, 6.0)
+    model.covar_module.outputscale_prior = GammaPrior(2.0, 0.15)
     hypers = {
         'likelihood.noise_covar.noise': torch.tensor(lik),
     }
-    
+
     model.initialize(**hypers)
     if not train_lik:
         model.likelihood.raw_noise.requires_grad = False
@@ -71,86 +73,119 @@ def set_gp(train_x, train_y, gp_kernel, device, lik=1e-10, rng=10, train_lik=Fal
 
 class Closure:
     """
-    Input:
+    Args:
         - mll: gpytorch.mlls.ExactMarginalLogLikelihood, marginal log likelihood
         - optimiser: torch.optim, L-BFGS-B optimizer from FullBatchLBFGS
 
-    Output:
+    Returns:
         - loss: torch.tensor, negative log marginal likelihood of GP
     """
     def __init__(self, mll, optimizer):
         self.mll = mll
         self.optimizer = optimizer
         self.train_inputs, self.train_targets = mll.model.train_inputs, mll.model.train_targets
-    
+
     def __call__(self):
         self.optimizer.zero_grad()
         with gpytorch.settings.fast_computations(log_prob=True):
             output = self.mll.model(*self.train_inputs)
             args = [output, self.train_targets]
-            l = -self.mll(*args).sum()
-        return l
+            loss = -self.mll(*args).sum()
+        return loss
 
-def train_GP(model, training_iter=50, thresh=0.01, lr=0.1, optimiser="L-BFGS-B"):
+
+def train_GP_with_BFGS(mll, training_iter, thresh):
     """
     L-BFGS-B implementation is from https://github.com/hjmshi/PyTorch-LBFGS
 
-    Input:
+    Args:
+        - mll: gpytorch.mlls.ExactMarginalLogLikelihood, marginal log likelihood
+        - training_iter: int, the maximum number of iteration of optimisation loop
+        - thresh: float, the stopping criterion
+
+    Returns:
+        - mll: gpytorch.mlls.ExactMarginalLogLikelihood, marginal log likelihood
+    """
+    # Use full-batch L-BFGS optimizer
+    optimizer = FullBatchLBFGS(mll.model.parameters())
+    closure = Closure(mll, optimizer)
+    loss = closure()
+    loss.backward()
+    loss_best = torch.tensor(1e10)
+
+    for i in range(training_iter):
+        # perform step and update curvature
+        options = {'closure': closure, 'current_loss': loss, 'max_ls': 10}
+        loss, _, lr, _, F_eval, G_eval, _, _ = optimizer.step(options)
+
+        if loss.item() < loss_best:
+            delta = torch.abs(loss_best - loss.detach())
+            loss_best = loss.item()
+            if delta < thresh:
+                break
+    return mll
+
+
+def train_GP_with_Adam(mll, lr, training_iter, thresh):
+    """
+    Args:
+        - mll: gpytorch.mlls.ExactMarginalLogLikelihood, marginal log likelihood
+        - lr: float, the learning rate
+        - training_iter: int, the maximum number of iteration of optimisation loop
+        - thresh: float, the stopping criterion
+
+    Returns:
+        - mll: gpytorch.mlls.ExactMarginalLogLikelihood, marginal log likelihood
+    """
+    optimizer = torch.optim.Adam(mll.model.parameters(), lr=lr)
+    train_x = mll.model.train_inputs[0]
+    train_y = mll.model.train_targets
+    loss_best = torch.tensor(1e10)
+
+    for i in range(training_iter):
+        optimizer.zero_grad()
+        output = mll.model(train_x)
+        loss = -mll(output, train_y)
+        loss.backward()
+        optimizer.step()
+        if loss.item() < loss_best:
+            delta = torch.abs(loss_best - loss.detach())
+            loss_best = loss.item()
+            if delta < thresh:
+                break
+    return mll
+
+
+def train_GP(model, training_iter=50, thresh=0.01, lr=0.1, optimiser="L-BFGS-B"):
+    """
+    Args:
         - model: gpytorch.models, function of GP model.
         - train_iter: int, the maximum iteration for GP hyperparameter training.
         - thresh: float, the threshold as a stopping criterion of GP hyperparameter training.
         - lr: float, the learning rate of Adam optimiser
         - optimiser: string, select the optimiser ["L-BFGS-B", "BoTorch", "Adam"]
 
-    Output:
+    Returns:
         - model: gpytorch.models, function of GP model.
     """
     model.train()
     model.likelihood.train()
     mll = gpytorch.mlls.ExactMarginalLogLikelihood(model.likelihood, model)
-    if optimiser == "BoTorch":
-        fit_gpytorch_model(mll)
-    
-    elif optimiser == "L-BFGS-B":
-        # Use full-batch L-BFGS optimizer
-        optimizer = FullBatchLBFGS(model.parameters())
-        closure = Closure(mll, optimizer)
-        loss = closure()
-        loss.backward()
-        loss_best = torch.tensor(1e10)
-        
-        for i in range(training_iter):
-            # perform step and update curvature
-            options = {'closure': closure, 'current_loss': loss, 'max_ls': 10}
-            loss, _, lr, _, F_eval, G_eval, _, _ = optimizer.step(options)
-            
-            if loss.item() < loss_best:
-                delta = torch.abs(loss_best - loss.detach())
-                loss_best = loss.item()
-                if delta < thresh:
-                    break
-            
-    elif optimiser == "Adam":
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr)  # Includes GaussianLikelihood parameters
-        train_x = model.train_inputs[0]
-        train_y = model.train_targets
-        loss_best = torch.tensor(1e10)
+    try:
+        if optimiser == "BoTorch":
+            mll = fit_gpytorch_model(mll)
+        elif optimiser == "L-BFGS-B":
+            mll = train_GP_with_BFGS(mll, training_iter, thresh)
 
-        for i in range(training_iter):
-            optimizer.zero_grad()
-            output = model(train_x)
-            loss = -mll(output, train_y)
-            loss.backward()
-            optimizer.step()
-            if loss.item() < loss_best:
-                delta = torch.abs(loss_best - loss.detach())
-                loss_best = loss.item()
-                if delta < thresh:
-                    break
-    else:
-        raise Exception("The given optimiser is not defined")
+        elif optimiser == "Adam":
+            mll = train_GP_with_Adam(mll, lr, training_iter, thresh)
+        else:
+            raise Exception("The given optimiser is not defined")
+    except:
+        warnings.warn("Optimiser " + optimiser + " failed. Optimising again with Adam...")
+        mll = train_GP_with_Adam(mll)
     return model
-    
+
 
 def update_gp(train_x, train_y, gp_kernel, device, lik=1e-10, training_iter=50, thresh=0.01, lr=0.1, rng=10, train_lik=False, optimiser="L-BFGS-B"):
     """
@@ -194,6 +229,7 @@ def predict(test_x, model):
         pred = model.likelihood(model(test_x))
     return pred.mean, pred.variance
 
+
 def get_cov_cache(model):
     """
     woodbury_inv = K(Xobs, Xobs)^(-1)
@@ -219,6 +255,7 @@ def get_cov_cache(model):
     woodbury_inv = S @ S.T
     return woodbury_inv, Xobs, lik_var
 
+
 def predictive_covariance(x, y, model):
     """
     Input:
@@ -234,7 +271,7 @@ def predictive_covariance(x, y, model):
     KxX = model.covar_module.forward(x, Xobs)
     KXy = model.covar_module.forward(Xobs, y)
     cov_xy = Kxy - KxX @ woodbury_inv @ KXy
-    
+
     d = min(len(x), len(y))
     cov_xy[range(d), range(d)] = cov_xy[range(d), range(d)] + lik_var
     return cov_xy

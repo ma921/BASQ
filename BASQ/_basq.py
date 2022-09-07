@@ -9,17 +9,14 @@ class BASQ(Parameters):
         """
         Goal: Estimate both evidence and posterior in one go with minimal queries.
 
-        Input:
+        Args:
            - Xobs; torch.tensor, X samples, X belongs to prior measure.
            - Yobs; torch.tensor, Y observations, Y = true_likelihood(X).
            - prior; torch.distributions, prior distribution.
            - true_likelihood; function of y = function(x), true likelihood to be estimated.
            - device; torch.device, device, cpu or cuda
 
-        Training:
-           - self.run(n_batch), n_batch is the number of batch
-
-        Output:
+        Results:
            - evidence (a.k.a. marginal likelihood);
              EZy, VarZy = self.kq.quadrature()
              EZy; the mean of evidence
@@ -30,11 +27,11 @@ class BASQ(Parameters):
 
     def joint_posterior(self, x, EZy):
         """
-        Input:
+        Args:
             - x: torch.tensor, inputs. torch.Size(n_data, n_dims)
             - EZy: float, the mean of the evidence
 
-        Output:
+        Returns:
             - torch.tensor, the posterior of given x
         """
         return self.predict_mean(x) * self.prior.log_prob(x).exp() / EZy
@@ -47,7 +44,7 @@ class BASQ(Parameters):
         - Uniform transformation; the prior distribution is transformed into uniform
                                   distrubution via impotance sampling.
 
-        Output:
+        Args:
             - EZy_prior: float, the mean of the evidence when the prior is optimised to maximise the evidence
             - VarZy_prior: float, the variance of the evidence when the prior is optimised to maximise the evidence
             - EZy_uni float, the mean of the evidence when the prior is transformed into uniform distribution
@@ -61,13 +58,13 @@ class BASQ(Parameters):
 
     def run_rchq(self, pts_nys, pts_rec, w_IS, kernel):
         """
-        Input:
+        Args:
             - pts_nys: torch.tensor, subsamples for low-rank approximation via Nyström method
             - pts_rec: torch.tensor, subsamples for empirical measure of kernel recomnbination
             - w_IS: torch.tensor, weights for importance sampling if pts_rec is not sampled from the prior
             - kernel: function of covariance_matrix = function(X, Y). Positive semi-definite Gram matrix (a.k.a. kernel)
 
-        Output:
+        Returns:
             - x: torch.tensor, the sparcified samples from pts_rec. The number of samples are determined by self.batch_size
             - w: torch.tensor, the positive weights for kernel quadrature as discretised summation.
         """
@@ -92,10 +89,10 @@ class BASQ(Parameters):
 
     def run(self, n_batch):
         """
-        Input:
+        Args:
             - n_batch: int, number of iteration. The total query is n_batch * self.batch_size
 
-        Output:
+        Returns:
             - results: torch.tensor, [overhead, EZy, VarZy]
         """
         results = []
@@ -114,6 +111,8 @@ class BASQ(Parameters):
             results.append([overhead, EZy, VarZy])
 
         if self.bq_model == "wsabi":
+            self.wsabi.memorise_parameters()
             EZy_prior, VarZy_prior, EZy_uni, VarZy_uni = self.quadratures()
+            self.wsabi.remind_parameters()
             self.retrain()
         return torch.tensor(results)
