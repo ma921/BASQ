@@ -28,7 +28,7 @@ def set_basq():
     - metric for evidence: logarithmic mean absolute error between true and estimated evidence.
               logMAE = torch.log(Z_estimated - Z_true)
 
-    Output:
+    Returns:
         - prior: torch.distributions, prior distribution
         - train_x: torch.tensor, initial sample(s)
         - train_y: torch.tensor, initial observation of true likelihood query
