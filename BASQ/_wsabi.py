@@ -191,6 +191,17 @@ class WsabiGP:
         }
         self.model.initialize(**hypers)
 
+    def predictive_kernel(self, x, y):
+        """
+        Args:
+           - x: torch.tensor, x locations to be predicted
+           - y: torch.tensor, y locations to be predicted
+
+        Args:
+           - CLy: torch.tensor, the positive semi-definite Gram matrix of predictive variance
+        """
+        return predictive_covariance(x, y, self.model)
+
     def wsabil_kernel(self, x, y):
         """
         Args:

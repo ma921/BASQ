@@ -81,7 +81,7 @@ class BASQ(Parameters):
 
     def run_basq(self):
         if self.sampler_type == "uncertainty":
-            self.sampler.update(self.wsabi.model)
+            self.sampler.update(self.gp.model)
         pts_nys, pts_rec, w_IS = self.sampler(self.n_rec)
         X, _ = self.run_rchq(pts_nys, pts_rec, w_IS, self.kernel)
         Y = self.true_likelihood(X)
@@ -111,8 +111,8 @@ class BASQ(Parameters):
             results.append([overhead, EZy, VarZy])
 
         if self.bq_model == "wsabi":
-            self.wsabi.memorise_parameters()
+            self.gp.memorise_parameters()
             EZy_prior, VarZy_prior, EZy_uni, VarZy_uni = self.quadratures()
-            self.wsabi.remind_parameters()
+            self.gp.remind_parameters()
             self.retrain()
         return torch.tensor(results)

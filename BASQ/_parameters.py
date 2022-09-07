@@ -93,7 +93,7 @@ class Parameters:
         if sampler_type == "uncertainty":
             self.sampler = UncertaintySampler(
                 prior,
-                self.wsabi.model,
+                self.gp.model,
                 n_rec,
                 nys_ratio,
                 self.device,
@@ -102,8 +102,10 @@ class Parameters:
                 n_gaussians=n_gaussians,
                 threshold=threshold,
             )
+            self.kernel_quadrature = self.gp.predictive_kernel
         elif sampler_type == "prior":
             self.sampler = PriorSampler(prior, n_rec, nys_ratio, self.device)
+            self.kernel_quadrature = self.kernel
         else:
             raise Exception("The given sampler_type is undefined.")
 
@@ -125,7 +127,7 @@ class Parameters:
            - optimiser: string, select the optimiser ["L-BFGS-B", "BoTorch", "Adam"]
         """
         if bq_model == "wsabi":
-            self.wsabi = WsabiGP(
+            self.gp = WsabiGP(
                 Xobs,
                 Yobs,
                 gp_kernel,
@@ -140,15 +142,13 @@ class Parameters:
                 train_lik=train_lik,
                 optimiser=optimiser,
             )
-            self.kernel = self.wsabi.kernel
-            self.predict_mean = self.wsabi.predict_mean
-            self.predict = self.wsabi.predict
-            self.update = self.wsabi.update_wsabi_gp
-            self.unimodal_approx = self.wsabi.unimodal_approximation
-            self.uniform_trans = self.wsabi.uniform_transformation
-            self.retrain = self.wsabi.retrain_gp
+            self.kernel = self.gp.kernel
+            self.update = self.gp.update_wsabi_gp
+            self.unimodal_approx = self.gp.unimodal_approximation
+            self.uniform_trans = self.gp.uniform_transformation
+
         elif bq_model == "vbq":
-            self.vbq = VanillaGP(
+            self.gp = VanillaGP(
                 Xobs,
                 Yobs,
                 gp_kernel,
@@ -161,13 +161,15 @@ class Parameters:
                 train_lik=train_lik,
                 optimiser=optimiser,
             )
-            self.kernel = self.vbq.predictive_kernel
-            self.predict_mean = self.vbq.predict_mean
-            self.predict = self.vbq.predict
-            self.update = self.vbq.update_gp
-            self.retrain = self.vbq.retrain_gp
+            self.kernel = self.gp.predictive_kernel
+            self.update = self.gp.update_gp
+            self.retrain = self.gp.retrain_gp
         else:
             raise Exception("The given bq_model is undefined.")
+
+        self.predict_mean = self.gp.predict_mean
+        self.predict = self.gp.predict
+        self.retrain = self.gp.retrain_gp
 
     def set_quadrature(self, nys_ratio, n_nys, n_quad):
         """
@@ -182,7 +184,7 @@ class Parameters:
             n_quad,
             self.batch_size,
             self.prior_sampler,
-            self.kernel,
+            self.kernel_quadrature,
             self.device,
             self.predict_mean,
         )
@@ -214,19 +216,19 @@ class Parameters:
         """
         if bq_model == "wsabi":
             if not kernel_type == "RBF":
-                raise Exception("WSABI model requires RBF kernel.")
+                raise AssertionError("WSABI model requires RBF kernel.")
         else:
             if not sampler_type == "prior":
-                raise Exception("Uncertainty sampling requires WSABI modelling with RBF kernel.")
+                raise AssertionError("Uncertainty sampling requires WSABI-L modelling with RBF kernel.")
 
         if sampler_type == "uncertainty":
             if not bq_model == "wsabi" and kernel_type == "RBF":
-                raise Exception("Uncertainty sampling requires WSABI modelling with RBF kernel.")
+                raise AssertionError("Uncertainty sampling requires WSABI-L modelling with RBF kernel.")
 
         if not type(self.prior) == torch.distributions.multivariate_normal.MultivariateNormal:
             if not bq_model == "vbq" and sampler_type == "prior":
-                raise Exception("Non-Gaussian prior requires prior sampling with VBQ modelling.")
+                raise AssertionError("Non-Gaussian prior requires prior sampling with VBQ modelling.")
 
         if not kernel_type == "RBF":
             if not bq_model == "vbq" and sampler_type == "prior":
-                raise Exception("Non-RBF kernel requires prior sampling with VBQ modelling.")
+                raise AssertionError("Non-RBF kernel requires prior sampling with VBQ modelling.")
