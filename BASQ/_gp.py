@@ -183,7 +183,7 @@ def train_GP(model, training_iter=50, thresh=0.01, lr=0.1, optimiser="L-BFGS-B")
             raise Exception("The given optimiser is not defined")
     except:
         warnings.warn("Optimiser " + optimiser + " failed. Optimising again with Adam...")
-        mll = train_GP_with_Adam(mll)
+        mll = train_GP_with_Adam(mll, lr, training_iter, thresh)
     return model
 
 
