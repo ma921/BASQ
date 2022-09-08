@@ -249,7 +249,7 @@ class WsabiGP:
         """
         mu_warp, var_warp = predict(x, self.model)
         mu = self.alpha + 0.5 * mu_warp**2
-        var = var_warp * mu_warp * var_warp
+        var = mu_warp * var_warp * mu_warp
         return mu, var
 
     def wsabim_predict(self, x):
@@ -263,7 +263,7 @@ class WsabiGP:
         """
         mu_warp, var_warp = predict(x, self.model)
         mu = self.alpha + 0.5 * (mu_warp**2 + var_warp)
-        var = var_warp * mu_warp * var_warp + 0.5 * (var_warp ** 2)
+        var = mu_warp * var_warp * mu_warp + 0.5 * (var_warp ** 2)
         return mu, var
 
     def wsabil_mean_predict(self, x):
