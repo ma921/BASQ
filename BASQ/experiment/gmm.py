@@ -23,11 +23,9 @@ class GMM:
 
     def IO(self, x):
         if len(x.size()) == 1:
-            return True
-        elif x.size()[0] == 1:
-            return True
+            return x.unsqueeze(1)
         else:
-            return False
+            return x
 
     def mean_generator(self):
         return (3 * (2 * torch.rand(self.dim) - 1)).to(self.device)
@@ -46,20 +44,13 @@ class GMM:
         return (1 / Npdfs) / self.n_comp
 
     def __call__(self, x):
-        if self.IO(x):
-            Npdfs = MultivariateNormal(
-                torch.zeros(self.dim).to(self.device),
-                self.cov,
-            ).log_prob(self.means - x).exp()
-            return torch.sum(self.weights * Npdfs).to(self.device)
+        x = self.IO(x)
+        d_x = len(x)
+        x = (torch.tile(self.means, (d_x, 1, 1)) - x.unsqueeze(1)).reshape(self.n_comp * d_x, self.dim).to(self.device)
+        Npdfs = MultivariateNormal(
+            torch.zeros(self.dim).to(self.device),
+            self.cov,
+        ).log_prob(x).exp().reshape(d_x, self.n_comp).to(self.device)
 
-        else:
-            d_x = len(x)
-            x = (torch.tile(self.means, (d_x, 1, 1)) - x.unsqueeze(1)).reshape(self.n_comp * d_x, self.dim).to(self.device)
-            Npdfs = MultivariateNormal(
-                torch.zeros(self.dim).to(self.device),
-                self.cov,
-            ).log_prob(x).exp().reshape(d_x, self.n_comp).to(self.device)
-
-            f = self.weights.unsqueeze(0) * Npdfs
-            return torch.sum(f, axis=1).to(self.device)
+        f = self.weights.unsqueeze(0) * Npdfs
+        return torch.sum(f, axis=1).to(self.device)
