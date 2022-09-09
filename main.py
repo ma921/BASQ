@@ -41,12 +41,12 @@ def set_basq():
     num_dim = 10  # Number of dimensions of the true likelihood to be estimated
     mu_pi = torch.zeros(num_dim).to(device)  # the mean vactor of Gaussian prior
     cov_pi = 2 * torch.eye(num_dim).to(device)  # the covariance matrix of Gaussian prior
+    prior = MultivariateNormal(mu_pi, cov_pi)  # Gaussian prior distribution
     true_likelihood = GMM(num_dim, mu_pi, cov_pi, device)  # true likelihood to be estimated
 
     # BQ modelling
     train_x = torch.rand(2, num_dim).to(device)  # initial locations
     train_y = true_likelihood(train_x)  # initial observations
-    prior = MultivariateNormal(mu_pi, cov_pi)  # Gaussian prior distribution
 
     # evaluation setting
     Z_true = 1  # the analytical integral value of marginal likelihood (a.k.a. evidence)
