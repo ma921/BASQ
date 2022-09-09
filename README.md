@@ -1,6 +1,6 @@
 # BASQ_torch
 
-The minimal implementation of BASQ with PyTorch and GPyTorch. 
+The minimal implementation of BASQ with PyTorch. 
 
 ## Prerequisite
 - PyTorch
