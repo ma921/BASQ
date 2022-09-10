@@ -156,10 +156,12 @@ class UncertaintySampler(SquareRootAcquisitionFunction):
         """
         X_pi = self.sampling_mean(n_super)
         mean, _ = predict(X_pi, self.model)
+        mean_log = mean.abs().log()
+        prior_log = self.utils.safe_mvn_prob(self.prior.loc, self.prior.covariance_matrix, X_pi).log()
+        sampler_log = torch.nan_to_num(self.joint_pdf_mean(X_pi))
+
         w_mpi_B = torch.exp(
-            mean.abs().log()
-            + self.utils.safe_mvn_prob(self.prior.loc, self.prior.covariance_matrix, X_pi)
-            - torch.nan_to_num(self.joint_pdf_mean(X_pi))
+            mean_log + prior_log - sampler_log
         )
         X_f = self.SIR(X_pi, w_mpi_B, n)
         return X_f
@@ -179,10 +181,12 @@ class UncertaintySampler(SquareRootAcquisitionFunction):
         """
         X_A = self.sampling(n_super)
         _, var_A = predict(X_A, self.model)
+        var_log = var_A.log()
+        prior_log = self.utils.safe_mvn_prob(self.prior.loc, self.prior.covariance_matrix, X_A).log()
+        sampler_log = torch.nan_to_num(self.joint_pdf(X_A)).log()
+
         w_C_A = torch.exp(
-            var_A.log()
-            + self.utils.safe_mvn_prob(self.prior.loc, self.prior.covariance_matrix, X_A)
-            - torch.nan_to_num(self.joint_pdf(X_A))
+            var_A.log() + prior_log - sampler_log
         )
         X_rec = self.SIR(X_A, w_C_A, n)
         return X_rec
