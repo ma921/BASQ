@@ -1,4 +1,4 @@
-# BASQ
+# BASQ: Bayesian Alternately Subsampled Quadrature
 
 This repository contains the python code that was presented for the paper.
 
