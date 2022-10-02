@@ -4,7 +4,10 @@ This repository contains the python code that was presented for the following pa
 
 [1] Adachi, M., Hayakawa, S., Jørgensen, M., Oberhauser, and Osborne, M. A. Fast Bayesian Inference with Batch Bayesian Quadrature via Kernel Recombination. Advances in Neural Information Processing Systems 36 (NeurIPS), 2022
 
-and some related methods. The data presented in the paper was coded with GPy, which is slower than this code.
+![plot](./summary.png)
+
+BASQ can sample more diverse and more quickly than exsting batch Bayesian Quadrature method.
+The data presented in the paper was coded with GPy, which is slower than this code.
 
 ## Prerequisite
 - PyTorch
