@@ -1,6 +1,6 @@
 # BASQ: Bayesian Alternately Subsampled Quadrature
 
-This repository contains the python code that was presented for the paper.
+This repository contains the python code that was presented for the following paper.
 
 [1] Adachi, M., Hayakawa, S., Jørgensen, M., Oberhauser, and Osborne, M. A. Fast Bayesian Inference with Batch Bayesian Quadrature via Kernel Recombination. Advances in Neural Information Processing Systems 36 (NeurIPS), 2022
 
