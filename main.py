@@ -60,6 +60,7 @@ if __name__ == "__main__":
     n_batch = 10  # the number of BASQ iteration. Total number of queries is n_batch * batch_size
 
     prior, train_x, train_y, true_likelihood, metric, device = set_basq()
+    print("True integral value is "+str(metric.Z_true))
     basq = BASQ(
         train_x,  # initial locations
         train_y,  # initial observations
