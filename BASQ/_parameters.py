@@ -18,7 +18,7 @@ class Parameters:
         """
         # BQ Modelling
         bq_model = "wsabi"             # select a BQ model from ["wsabi", "vbq"], vbq stands for Vanilla BQ
-        sampler_type = "uncertainty"   # select a sampler from ["uncertainty", "prior"]
+        sampler_type = "prior"         # select a sampler from ["uncertainty", "prior"]
         kernel_type = "RBF"            # select a kernel from ["RBF", "Matern32", "Matern52"]
 
         # WSABI modelling
