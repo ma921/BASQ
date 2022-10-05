@@ -13,8 +13,7 @@ This repository contains the python code that was presented for the following pa
 - Arbitrary prior distribution for Bayesian inference
 
 ## Content
-BASQ can sample more diversely and quickly than the existing batch Bayesian Quadrature method (batch WSABI).
-The data presented in the paper was coded with GPy, which is slower than this code based on batch WSABI code for comparison.
+BASQ can sample more diversely and quickly than the existing batch Bayesian Quadrature method (batch WSABI). The data presented in the paper was coded with GPy, which is based on batch WSABI code for comparison. The GPy one is not fast as we won't open but I can share if necessary.
 Batch WSABI code is here: [link](https://github.com/OxfordML/bayesquad)
 
 ## Requirements
