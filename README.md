@@ -28,6 +28,9 @@ python3 main.py
 
 The example with Gaussian Mixture Likelihood (dim=10) will run.
 
+You can find the detailed example applied to Bayesian model selection:
+[Bayesian Model Selection with BASQ](https://github.com/Battery-Intelligence-Lab/BayesianModelSelection)
+
 ## For developers/researchers
 You can select arbitrary kernels/priors/parameters on ./BASQ/_parametetrs.py
 - To change kernel: change "kernel_type", such as Matern52.
