@@ -4,6 +4,10 @@ from ._rchq import recombination
 from ._parameters import Parameters
 
 
+def sample_obj(x):
+    return torch.ones(x.shape[0])
+
+
 class BASQ(Parameters):
     def __init__(self, Xobs, Yobs, prior, true_likelihood, device):
         """
@@ -75,6 +79,7 @@ class BASQ(Parameters):
             kernel,
             self.device,
             init_weights=w_IS,
+            calc_obj=sample_obj,
         )
         x = pts_rec[idx]
         return x, w
