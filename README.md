@@ -5,6 +5,7 @@ This repository contains the python code that was presented for the following pa
 [1] Adachi, M., Hayakawa, S., Jørgensen, M., Oberhauser, H., and Osborne, M. A. Fast Bayesian Inference with Batch Bayesian Quadrature via Kernel Recombination. Advances in Neural Information Processing Systems 35 (NeurIPS 2022), 2022
 
 ![plot](./summary.png)
+![Animate](./combine.gif)
 
 ## Features
 - fast batch Bayesian quadrature
