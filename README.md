@@ -3,9 +3,14 @@
 This repository contains the python code that was presented for the following paper.
 
 [1] Adachi, M., Hayakawa, S., Jørgensen, M., Oberhauser, H., and Osborne, M. A. Fast Bayesian Inference with Batch Bayesian Quadrature via Kernel Recombination. Advances in Neural Information Processing Systems 35 (NeurIPS 2022), 2022
+[arXiv](https://arxiv.org/abs/2206.04734), [OpenReview](https://openreview.net/forum?id=9wCQVgEWO2J)
 
 ![plot](./summary.png)
+
+## Brief explanation
 ![Animate](./combine.gif)
+We query 100 points in parallel to the true posterior distribution. Colours represent the GP surrogate model trying to approximate the three true posteriors (Ackley, Oscillatory, Branin-Hoo, see Supplementary Figure 4 for details).
+The black dots in the animated GIF is the proposed points by BASQ for each iteration. At the third iteration, BASQ can capture the whole posterior surface.
 
 ## Features
 - fast batch Bayesian quadrature
