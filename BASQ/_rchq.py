@@ -1,4 +1,6 @@
 import torch
+import numpy as np
+import gurobipy as gp
 
 
 def recombination(
@@ -7,6 +9,7 @@ def recombination(
     num_pts,         # number of samples finally returned
     kernel,          # kernel
     device,          # device
+    ratio=2,           # ratio in recombination: if set to be None, it runs a full LP
     init_weights=None,  # initial weights of the sample for recombination
     calc_obj=None,   # a function for calculating an additional objective function
 ):
@@ -24,7 +27,7 @@ def recombination(
         - x: torch.tensor, the sparcified samples from pts_rec. The number of samples are determined by self.batch_size
         - w: torch.tensor, the positive weights for kernel quadrature as discretised summation.
     """
-    return rc_kernel_svd(pts_rec, pts_nys, num_pts, kernel, device, mu=init_weights, calc_obj=calc_obj)
+    return rc_kernel_svd(pts_rec, pts_nys, num_pts, kernel, device, ratio, mu=init_weights, calc_obj=calc_obj)
 
 
 def ker_svd_sparsify(pt, s, kernel, device):
@@ -33,23 +36,26 @@ def ker_svd_sparsify(pt, s, kernel, device):
     return S, U
 
 
-def rc_kernel_svd(samp, pt, s, kernel, device, mu=None, calc_obj=None):
+def rc_kernel_svd(samp, pt, s, kernel, device, ratio, mu=None, calc_obj=None):
     # Nystrom method
     _, U = ker_svd_sparsify(pt, s - 1, kernel, device)
     w_star, idx_star = Mod_Tchernychova_Lyons(
-        samp, U, pt, kernel, device, mu=mu, calc_obj=calc_obj
+        samp, U, pt, kernel, device, ratio, mu=mu, calc_obj=calc_obj
     )
     return idx_star, w_star
 
 
-def Mod_Tchernychova_Lyons(samp, U_svd, pt_nys, kernel, device, mu=None, calc_obj=None, DEBUG=False):
+def Mod_Tchernychova_Lyons(samp, U_svd, pt_nys, kernel, device, ratio=2, mu=None, calc_obj=None, DEBUG=False):
     """
     This function is a modified Tcherynychova_Lyons from
     https://github.com/FraCose/Recombination_Random_Algos/blob/master/recombination.py
     """
     N = len(samp)
     n, length = U_svd.shape
-    number_of_sets = 2 * (n + 1)
+    if ratio is None:
+        number_of_sets = N
+    else:
+        number_of_sets = min(N, max(ratio, 2) * (n + 1))
 
     # obj = torch.zeros(N).to(device)
     if mu is None:
@@ -74,30 +80,11 @@ def Mod_Tchernychova_Lyons(samp, U_svd, pt_nys, kernel, device, mu=None, calc_ob
             if use_obj:
                 X_mat = torch.cat((X_mat, torch.reshape(
                     obj[idx_story], (1, -1))), 0)
-                X_mat_raw = torch.clone(X_mat[:-1])
-            w_star, idx_star, x_star, _, ERR, _, _ = Tchernychova_Lyons_CAR(
-                X_mat.T, torch.clone(mu[idx_story]), device, DEBUG)
-
-            if use_obj:
-                Xp = X_mat_raw[:, idx_star]
-                obj_p = obj[idx_star]
-                Xp = torch.cat((Xp, torch.ones((1, len(idx_star)))), 0)
-                _, _, w_null = torch.linalg.svd(Xp)
-                w_null = w_null[-1]
-                if torch.dot(obj_p, w_null) < 0:
-                    w_null = -w_null
-
-                lm = len(w_star)
-                plis = w_null > 0
-                alpha = torch.zeros(lm)
-                alpha[plis] = w_star[plis] / w_null[plis]
-                idx_sp = torch.arange(lm)[plis]
-                idx_sp = idx_sp[torch.argmin(alpha[plis])]
-                w_star = w_star-alpha[idx_sp]*w_null
-                w_star[idx_sp] = 0.
-
-                idx_star = idx_star[w_star > 0]
-                w_star = w_star[w_star > 0]
+                #X_mat_raw = torch.clone(X_mat[:-1])
+            # w_star, idx_star, x_star, _, ERR, _, _ = Tchernychova_Lyons_CAR(
+            #     X_mat.T, torch.clone(mu[idx_story]), device, DEBUG)
+            w_star, idx_star = LP(X_mat, torch.clone(
+                mu[idx_story]), device, use_obj=use_obj)
 
             idx_story = idx_story[idx_star]
             mu[:] = 0.
@@ -143,35 +130,16 @@ def Mod_Tchernychova_Lyons(samp, U_svd, pt_nys, kernel, device, mu=None, calc_ob
 
         X_tmp = torch.divide(X_tmp, tot_weights.unsqueeze(0).T)
 
-        # sparsify for the case use_obj is True
-        if use_obj:
-            X_tmp_raw = torch.clone(X_tmp[:, :n])
-            obj_raw = X_tmp[:, -1:].reshape(-1)
+        # # sparsify for the case use_obj is True
+        # if use_obj:
+        #     X_tmp_raw = torch.clone(X_tmp[:, :n])
+        #     obj_raw = X_tmp[:, -1:].reshape(-1)
 
-        w_star, idx_star, _, _, ERR, _, _ = Tchernychova_Lyons_CAR(
-            X_tmp, torch.clone(tot_weights), device
-        )
-
-        if use_obj:
-            Xp = X_tmp_raw[idx_star].T
-            obj_p = obj_raw[idx_star]
-            Xp = torch.cat((Xp, torch.ones((1, len(idx_star)))), 0)
-            _, _, w_null = torch.linalg.svd(Xp)
-            w_null = w_null[-1]
-            if torch.dot(obj_p, w_null) < 0:
-                w_null = -w_null
-
-            lm = len(w_star)
-            plis = w_null > 0
-            alpha = torch.zeros(lm)
-            alpha[plis] = w_star[plis] / w_null[plis]
-            idx_sp = torch.arange(lm)[plis]
-            idx_sp = idx_sp[torch.argmin(alpha[plis])]
-            w_star = w_star-alpha[idx_sp]*w_null
-            w_star[idx_sp] = 0.
-
-            idx_star = idx_star[w_star > 0]
-            w_star = w_star[w_star > 0]
+        # w_star, idx_star, _, _, ERR, _, _ = Tchernychova_Lyons_CAR(
+        #     X_tmp, torch.clone(tot_weights), device
+        # )
+        w_star, idx_star = LP(X_tmp.T, torch.clone(
+            tot_weights), device, use_obj=use_obj)
 
         idx_tomaintain = idx[:, idx_star].reshape(-1)
         idx_tocancel = torch.ones(idx.shape[1]).to(torch.bool).to(device)
@@ -199,46 +167,100 @@ def Mod_Tchernychova_Lyons(samp, U_svd, pt_nys, kernel, device, mu=None, calc_ob
         remaining_points = len(idx_story)
 
 
-def Tchernychova_Lyons_CAR(X, mu, device, DEBUG=False):
-    """
-    This functions reduce X from N points to n+1.
-    This is taken from https://github.com/FraCose/Recombination_Random_Algos/blob/master/recombination.py
-    """
-    X = torch.cat([torch.ones(X.size(0)).unsqueeze(0).T.to(device), X], dim=1)
-    N, n = X.shape
-    U, Sigma, V = torch.linalg.svd(X.T)
-    U = torch.cat([U, torch.zeros((n, N - n)).to(device)], dim=1)
-    Sigma = torch.cat([Sigma, torch.zeros(N - n).to(device)])
-    Phi = V[-(N - n):, :].T
-    cancelled = torch.tensor([], dtype=int).to(device)
+def LP(K_, mu_, device, ep=1e-5, er=1e-5, use_obj=True):
+    # We solve an LP of the form
+    # maximize c^T @ x
+    # subject to |K @ x - K @ mu| <= |K| @ er
+    #            x >= 0, |1^T @ x - 1| <= ep
+    #
+    # 'er' represents a relative L^1 error at each test function,
+    #   either a scalar or a vector with length m - 1 (= # of test functions)
+    # 'ep' represents an acceptable error of the sum of x from 1, a scalar
+    #
+    # If you want to integrate test functions "exactly",
+    # we recommend using er = ep = 1e-5 or similar, depending on the precision you use
 
-    for _ in range(N - n):
-        lm = len(mu)
-        plis = Phi[:, 0] > 0
-        alpha = torch.zeros(lm).to(device)
-        alpha[plis] = mu[plis] / Phi[plis, 0]
-        idx = torch.arange(lm)[plis].to(device)
-        idx = idx[torch.argmin(alpha[plis])]
+    K = K_.cpu().detach().numpy()
+    mu = mu_.cpu().detach().numpy()
+    m, n = K.shape
+    mu = mu.reshape((n, 1))
+    B = K @ mu
+    B_er = (np.absolute(K[m-1, :]) @ mu) * er
+    dum = np.ones((1, n))
+    model = gp.Model("test")
+    model.Params.LogToConsole = 0
+    x = model.addMVar(n)
+    model.update()
 
-        if len(cancelled) == 0:
-            cancelled = idx.unsqueeze(0)
-        else:
-            cancelled = torch.cat([cancelled, idx.unsqueeze(0)])
-        mu[:] = mu - alpha[idx] * Phi[:, 0]
-        mu[idx] = 0.
+    if(use_obj == True):
+        model.setObjective(- K[m - 1, :] @ x)
+        # To maximize K[m-1,:] @ x
+    else:
+        model.setObjective(0)
 
-        if DEBUG and (not torch.allclose(torch.sum(mu), 1.)):
-            # print("ERROR")
-            print("sum ", torch.sum(mu))
+    for i in range(m - 1):
+        model.addConstr(K[i, :] @ x >= B[i] - B_er[i])
+        model.addConstr(K[i, :] @ x <= B[i] + B_er[i])
+    model.addConstr(dum @ x >= dum @ mu - ep)
+    model.addConstr(dum @ x <= dum @ mu + ep)
+    model.addConstr(x >= 0)
 
-        Phi_tmp = Phi[:, 0]
-        Phi = Phi[:, 1:]
-        Phi = Phi - torch.matmul(
-            Phi[idx].unsqueeze(1),
-            Phi_tmp.unsqueeze(1).T,
-        ).T / Phi_tmp[idx]
-        Phi[idx, :] = 0.
+    model.optimize()
+    idx_star = []
+    w_star = []
+    if model.Status == gp.GRB.OPTIMAL:
+        for i in range(n):
+            if x[i].X > 0:
+                idx_star.append(i)
+                w_star.append(x[i].X)
+    else:
+        print("FAILED")
+    w_star = torch.from_numpy(np.reshape(w_star, -1)).to(device).float()
+    # we use torch.float here, but you can edit here (and possibly other placed) to make it of double precision
+    idx_star = torch.from_numpy(np.reshape(
+        idx_star, -1).astype(int)).to(device)
+    return w_star, idx_star
 
-    w_star = mu[mu > 0]
-    idx_star = torch.arange(N)[mu > 0].to(device)
-    return w_star, idx_star, torch.nan, torch.nan, 0., torch.nan, torch.nan
+# def Tchernychova_Lyons_CAR(X, mu, device, DEBUG=False):
+#     """
+#     This functions reduce X from N points to n+1.
+#     This is taken from https://github.com/FraCose/Recombination_Random_Algos/blob/master/recombination.py
+#     """
+#     X = torch.cat([torch.ones(X.size(0)).unsqueeze(0).T.to(device), X], dim=1)
+#     N, n = X.shape
+#     U, Sigma, V = torch.linalg.svd(X.T)
+#     U = torch.cat([U, torch.zeros((n, N - n)).to(device)], dim=1)
+#     Sigma = torch.cat([Sigma, torch.zeros(N - n).to(device)])
+#     Phi = V[-(N - n):, :].T
+#     cancelled = torch.tensor([], dtype=int).to(device)
+
+#     for _ in range(N - n):
+#         lm = len(mu)
+#         plis = Phi[:, 0] > 0
+#         alpha = torch.zeros(lm).to(device)
+#         alpha[plis] = mu[plis] / Phi[plis, 0]
+#         idx = torch.arange(lm)[plis].to(device)
+#         idx = idx[torch.argmin(alpha[plis])]
+
+#         if len(cancelled) == 0:
+#             cancelled = idx.unsqueeze(0)
+#         else:
+#             cancelled = torch.cat([cancelled, idx.unsqueeze(0)])
+#         mu[:] = mu - alpha[idx] * Phi[:, 0]
+#         mu[idx] = 0.
+
+#         if DEBUG and (not torch.allclose(torch.sum(mu), 1.)):
+#             # print("ERROR")
+#             print("sum ", torch.sum(mu))
+
+#         Phi_tmp = Phi[:, 0]
+#         Phi = Phi[:, 1:]
+#         Phi = Phi - torch.matmul(
+#             Phi[idx].unsqueeze(1),
+#             Phi_tmp.unsqueeze(1).T,
+#         ).T / Phi_tmp[idx]
+#         Phi[idx, :] = 0.
+
+#     w_star = mu[mu > 0]
+#     idx_star = torch.arange(N)[mu > 0].to(device)
+#     return w_star, idx_star, torch.nan, torch.nan, 0., torch.nan, torch.nan

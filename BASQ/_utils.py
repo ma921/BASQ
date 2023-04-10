@@ -50,7 +50,7 @@ class Utils:
         Returns:
            - flag: bool, flag to judge whether or not the given matrix is positive semi-definite
         """
-        return bool((mat == mat.T).all() and (torch.eig(mat)[0][:, 0] >= 0).all())
+        return bool((mat == mat.T).all() and (torch.real(torch.linalg.eig(mat)[0]) >= 0).all())
 
     def safe_mvn_register(self, mu, cov):
         """
@@ -64,7 +64,8 @@ class Utils:
         if self.is_psd(cov):
             return MultivariateNormal(mu, cov)
         else:
-            warnings.warn("Estimated covariance matrix was not positive semi-definite. Conveting...")
+            warnings.warn(
+                "Estimated covariance matrix was not positive semi-definite. Conveting...")
             cov = torch.nan_to_num(cov)
             cov = torch.sqrt(cov * cov.T)
             if not self.is_psd(cov):
