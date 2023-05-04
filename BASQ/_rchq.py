@@ -12,6 +12,7 @@ def recombination(
     ratio=2,           # ratio in recombination: if set to be None, it runs a full LP
     init_weights=None,  # initial weights of the sample for recombination
     calc_obj=None,   # a function for calculating an additional objective function
+    calc_prob=None,  # a function for calculating the acceptance probability
 ):
     """
     Args:
@@ -27,7 +28,8 @@ def recombination(
         - x: torch.tensor, the sparcified samples from pts_rec. The number of samples are determined by self.batch_size
         - w: torch.tensor, the positive weights for kernel quadrature as discretised summation.
     """
-    return rc_kernel_svd(pts_rec, pts_nys, num_pts, kernel, device, ratio, mu=init_weights, calc_obj=calc_obj)
+
+    return rc_kernel_svd(pts_rec, pts_nys, num_pts, kernel, device, ratio, mu=init_weights, calc_obj=calc_obj, calc_prob=calc_prob)
 
 
 def ker_svd_sparsify(pt, s, kernel, device):
@@ -36,16 +38,17 @@ def ker_svd_sparsify(pt, s, kernel, device):
     return S, U
 
 
-def rc_kernel_svd(samp, pt, s, kernel, device, ratio, mu=None, calc_obj=None):
+def rc_kernel_svd(samp, pt, s, kernel, device, ratio, mu=None, calc_obj=None, calc_prob=None):
+    num_eigs = s - 1 - int(calc_prob is not None)
     # Nystrom method
-    _, U = ker_svd_sparsify(pt, s - 1, kernel, device)
+    eigs, U = ker_svd_sparsify(pt, num_eigs, kernel, device)
     w_star, idx_star = Mod_Tchernychova_Lyons(
-        samp, U, pt, kernel, device, ratio, mu=mu, calc_obj=calc_obj
+        samp, eigs, U, pt, kernel, device, ratio, mu=mu, calc_obj=calc_obj, calc_prob=calc_prob
     )
     return idx_star, w_star
 
 
-def Mod_Tchernychova_Lyons(samp, U_svd, pt_nys, kernel, device, ratio=2, mu=None, calc_obj=None, DEBUG=False):
+def Mod_Tchernychova_Lyons(samp, eigs, U_svd, pt_nys, kernel, device, ratio=2, mu=None, calc_obj=None, calc_prob=None, DEBUG=False):
     """
     This function is a modified Tcherynychova_Lyons from
     https://github.com/FraCose/Recombination_Random_Algos/blob/master/recombination.py
@@ -65,6 +68,9 @@ def Mod_Tchernychova_Lyons(samp, U_svd, pt_nys, kernel, device, ratio=2, mu=None
     idx_story = idx_story[mu != 0]
     remaining_points = len(idx_story)
 
+    use_prob = False if calc_prob is None else True
+    if use_prob:
+        prob = calc_prob(samp)
     use_obj = False if calc_obj is None else True
     if use_obj:
         obj = calc_obj(samp)
@@ -77,14 +83,14 @@ def Mod_Tchernychova_Lyons(samp, U_svd, pt_nys, kernel, device, ratio=2, mu=None
 
         elif n + 1 < remaining_points <= number_of_sets:
             X_mat = U_svd @ kernel(pt_nys, samp[idx_story])
+            if use_prob:
+                X_mat = torch.cat((X_mat, torch.reshape(
+                    prob[idx_story], (1, -1))), 0)
             if use_obj:
                 X_mat = torch.cat((X_mat, torch.reshape(
                     obj[idx_story], (1, -1))), 0)
-                #X_mat_raw = torch.clone(X_mat[:-1])
-            # w_star, idx_star, x_star, _, ERR, _, _ = Tchernychova_Lyons_CAR(
-            #     X_mat.T, torch.clone(mu[idx_story]), device, DEBUG)
             w_star, idx_star = LP(X_mat, torch.clone(
-                mu[idx_story]), device, use_obj=use_obj)
+                mu[idx_story]), eigs, device, use_obj=use_obj, use_prob=use_prob)
 
             idx_story = idx_story[idx_star]
             mu[:] = 0.
@@ -99,6 +105,7 @@ def Mod_Tchernychova_Lyons(samp, U_svd, pt_nys, kernel, device, ratio=2, mu=None
         idx = idx_story[:number_of_el *
                         number_of_sets].reshape(number_of_el, -1)
         X_for_nys = torch.zeros((length, number_of_sets)).to(device)
+        X_for_prob = torch.zeros((1, number_of_sets)).to(device)
         X_for_obj = torch.zeros((1, number_of_sets)).to(device)
         for i in range(number_of_el):
             idx_tmp_i = idx_story[i * number_of_sets:(i + 1) * number_of_sets]
@@ -106,11 +113,16 @@ def Mod_Tchernychova_Lyons(samp, U_svd, pt_nys, kernel, device, ratio=2, mu=None
                 kernel(pt_nys, samp[idx_tmp_i]),
                 mu[idx_tmp_i].unsqueeze(0)
             )
+            if use_prob:
+                X_for_prob += torch.multiply(
+                    torch.reshape(prob[idx_tmp_i], (1, -1)), mu[idx_tmp_i].unsqueeze(0))
             if use_obj:
                 X_for_obj += torch.multiply(
                     torch.reshape(obj[idx_tmp_i], (1, -1)), mu[idx_tmp_i].unsqueeze(0))
 
         X_tmp_tr = U_svd @ X_for_nys
+        if use_prob:
+            X_tmp_tr = torch.cat((X_tmp_tr, X_for_prob), 0)
         if use_obj:
             X_tmp_tr = torch.cat((X_tmp_tr, X_for_obj), 0)
         X_tmp = X_tmp_tr.T
@@ -119,6 +131,9 @@ def Mod_Tchernychova_Lyons(samp, U_svd, pt_nys, kernel, device, ratio=2, mu=None
 
         if len(idx_last_part):
             X_mat = U_svd @ kernel(pt_nys, samp[idx_last_part])
+            if use_prob:
+                X_mat = torch.cat((X_mat, torch.reshape(
+                    prob[idx_last_part], (1, -1))), 0)
             if use_obj:
                 X_mat = torch.cat((X_mat, torch.reshape(
                     obj[idx_last_part], (1, -1))), 0)
@@ -139,7 +154,7 @@ def Mod_Tchernychova_Lyons(samp, U_svd, pt_nys, kernel, device, ratio=2, mu=None
         #     X_tmp, torch.clone(tot_weights), device
         # )
         w_star, idx_star = LP(X_tmp.T, torch.clone(
-            tot_weights), device, use_obj=use_obj)
+            tot_weights), eigs, device, use_obj=use_obj, use_prob=use_prob)
 
         idx_tomaintain = idx[:, idx_star].reshape(-1)
         idx_tocancel = torch.ones(idx.shape[1]).to(torch.bool).to(device)
@@ -167,42 +182,50 @@ def Mod_Tchernychova_Lyons(samp, U_svd, pt_nys, kernel, device, ratio=2, mu=None
         remaining_points = len(idx_story)
 
 
-def LP(K_, mu_, device, ep=1e-5, er=1e-5, use_obj=True):
-    # We solve an LP of the form
-    # maximize c^T @ x
-    # subject to |K @ x - K @ mu| <= |K| @ er
-    #            x >= 0, |1^T @ x - 1| <= ep
+def LP(K_, mu_, eigs_, device, ep_lp=1e-5, ep_torch=1e-8, use_obj=True, use_prob=True):
+    # We solve an LP, which is given as follows when use_obj & use_prob is True:
+    # maximize K[-1] @ x (objective term)
+    # subject to |K[:-2] @ x - K[:-2] @ mu| <= ep_lp * eigs (coordinate-wise)
+    #            K[-2] @ x >= K[-2] @ mu (probability term)
+    #            x >= 0, |1^T @ x - 1| <= ep_torch (accepting numerical errors)
     #
-    # 'er' represents a relative L^1 error at each test function,
-    #   either a scalar or a vector with length m - 1 (= # of test functions)
-    # 'ep' represents an acceptable error of the sum of x from 1, a scalar
+    # 'ep_lp' corresponds to \epislon_{LP} in the paper
+    # 'ep_torch' corresponds to an acceptable numerical error to avoid infeasibility
     #
     # If you want to integrate test functions "exactly",
-    # we recommend using er = ep = 1e-5 or similar, depending on the precision you use
+    # we recommend using ep_lp = ep_torch = 1e-8 or similar, depending on the precision you use
 
     K = K_.cpu().detach().numpy()
     mu = mu_.cpu().detach().numpy()
+    eigs = eigs_.cpu().detach().numpy()
     m, n = K.shape
     mu = mu.reshape((n, 1))
     B = K @ mu
-    B_er = (np.absolute(K[m-1, :]) @ mu) * er
     dum = np.ones((1, n))
+
+    num_final = int(use_obj) + int(use_prob)
+    B_er = np.sqrt(eigs / max(1, m - num_final)) * ep_lp
+    B_er = np.maximum(B_er, np.ones(m - num_final) * ep_torch)
+
     model = gp.Model("test")
     model.Params.LogToConsole = 0
     x = model.addMVar(n)
     model.update()
 
-    if(use_obj == True):
+    if use_obj:
         model.setObjective(- K[m - 1, :] @ x)
         # To maximize K[m-1,:] @ x
     else:
         model.setObjective(0)
+    if use_prob:
+        model.addConstr(K[m - num_final] @ x >= K[m - num_final] @ mu)
 
-    for i in range(m - 1):
+    for i in range(m - num_final):
         model.addConstr(K[i, :] @ x >= B[i] - B_er[i])
         model.addConstr(K[i, :] @ x <= B[i] + B_er[i])
-    model.addConstr(dum @ x >= dum @ mu - ep)
-    model.addConstr(dum @ x <= dum @ mu + ep)
+
+    model.addConstr(dum @ x >= dum @ mu - ep_torch)
+    model.addConstr(dum @ x <= dum @ mu + ep_torch)
     model.addConstr(x >= 0)
 
     model.optimize()
@@ -216,7 +239,7 @@ def LP(K_, mu_, device, ep=1e-5, er=1e-5, use_obj=True):
     else:
         print("FAILED")
     w_star = torch.from_numpy(np.reshape(w_star, -1)).to(device).float()
-    # we use torch.float here, but you can edit here (and possibly other placed) to make it of double precision
+    # we use torch.float here, but you can edit here (and possibly other places) to make it of double precision
     idx_star = torch.from_numpy(np.reshape(
         idx_star, -1).astype(int)).to(device)
     return w_star, idx_star
