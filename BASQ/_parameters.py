@@ -17,7 +17,7 @@ class Parameters:
            - device; torch.device, device, cpu or cuda
         """
         # BQ Modelling
-        bq_model = "wsabi"             # select a BQ model from ["wsabi", "vbq"], vbq stands for Vanilla BQ
+        bq_model = "vbq"               # select a BQ model from ["wsabi", "vbq"], vbq stands for Vanilla BQ
         sampler_type = "prior"         # select a sampler from ["uncertainty", "prior"]
         kernel_type = "RBF"            # select a kernel from ["RBF", "Matern32", "Matern52"]
 
