@@ -1,11 +1,10 @@
 import copy
 import torch
-from ._gp import update_gp, predict, predictive_covariance
-from ._utils import Utils
-from ._gaussian_calc import GaussianCalc
+from .._gp import set_gp, update_gp, predict, predictive_covariance
+from .._utils import Utils
 
 
-class WsabiGP:
+class FitboGP:
     def __init__(
         self,
         Xobs,
@@ -13,17 +12,19 @@ class WsabiGP:
         gp_kernel,
         device,
         label="wsabim",
-        alpha_factor=0.8,
+        alpha_factor=1,
         lik=1e-10,
         training_iter=10000,
         thresh=0.01,
         lr=0.1,
         rng=10,
         train_lik=False,
-        optimiser="L-BFGS-B",
+        optimiser="BoTorch",
     ):
         """
-        WSABI BQ modelling
+        FITBO (WSABI BQ) modelling
+        FITBO -> https://arxiv.org/abs/1711.00673
+        WSABI -> https://arxiv.org/abs/1411.0439
         WsabiGP class summarises the functions of training, updating the warped GP model.
         This also provides the prediction and kernel of WSABI GP.
         The modelling of WSABI-L and WSABI-M can be easily switched by changing "label".
@@ -71,7 +72,6 @@ class WsabiGP:
             optimiser=self.optimiser,
         )
         self.setting(label)
-        self.gauss = GaussianCalc(self.model, self.device)
 
     def setting(self, label):
         """
@@ -95,7 +95,7 @@ class WsabiGP:
         Returns:
            - y: torch.tensor, warped observations
         """
-        return torch.sqrt(2 * (y - self.alpha))
+        return self.alpha.sign() * torch.sqrt(2 * (self.alpha - y))
 
     def unwarp_y(self, y):
         """
@@ -105,7 +105,7 @@ class WsabiGP:
         Returns:
            - y: torch.tensor, unwarped observations
         """
-        return self.alpha + 0.5 * (y ** 2)
+        return self.alpha - 0.5 * (y ** 2)
 
     def process_y_warping(self, y):
         """
@@ -116,7 +116,9 @@ class WsabiGP:
            - y: torch.tensor, warped observations that contains no anomalies and the updated alpha hyperparameter.
         """
         y = self.utils.remove_anomalies(y)
-        self.alpha = self.alpha_factor * torch.min(y)
+        #y -= y.min() 
+        #y = (y - y.mean()) / y.std()
+        self.alpha = self.alpha_factor * torch.max(y)
         y = self.warp_y(y)
         return y
 
@@ -160,6 +162,17 @@ class WsabiGP:
             train_lik=self.train_lik,
             optimiser=self.optimiser,
         )
+        """
+        self.model = set_gp(
+            X_warp,
+            Y_warp,
+            self.gp_kernel,
+            self.device,
+            lik=self.lik,
+            rng=self.rng,
+            train_lik=self.train_lik,
+        )
+        """
 
     def retrain_gp(self):
         X_warp = self.model.train_inputs[0]
@@ -214,11 +227,7 @@ class WsabiGP:
         mu_x, _ = predict(x, self.model)
         mu_y, _ = predict(y, self.model)
         cov_xy = predictive_covariance(x, y, self.model)
-        if len(mu_x.shape) == 1 and len(mu_y.shape) == 1:
-            CLy = mu_x.unsqueeze(1) * cov_xy * mu_y.unsqueeze(0)
-        else:
-            CLy = mu_x.unsqueeze(1) * cov_xy * mu_y.unsqueeze(1)
-        #CLy = mu_x.unsqueeze(1) * cov_xy * mu_y.unsqueeze(0)
+        CLy = mu_x.unsqueeze(1) * cov_xy * mu_y.unsqueeze(0)
 
         d = min(len(x), len(y))
         CLy[range(d), range(d)] = CLy[range(d), range(d)] + self.jitter
@@ -236,13 +245,7 @@ class WsabiGP:
         mu_x, _ = predict(x, self.model)
         mu_y, _ = predict(y, self.model)
         cov_xy = predictive_covariance(x, y, self.model)
-        
-        if len(mu_x.shape) == 1 and len(mu_y.shape) == 1:
-            CLy = mu_x.unsqueeze(1) * cov_xy * mu_y.unsqueeze(0) + 0.5 * (cov_xy ** 2)
-        else:
-            CLy = mu_x.unsqueeze(1) * cov_xy * mu_y.unsqueeze(1) + 0.5 * (cov_xy ** 2)
-        
-        #CLy = mu_x.unsqueeze(1) * cov_xy * mu_y.unsqueeze(0) + 0.5 * (cov_xy ** 2)
+        CLy = mu_x.unsqueeze(1) * cov_xy * mu_y.unsqueeze(0) + 0.5 * (cov_xy ** 2)
 
         d = min(len(x), len(y))
         CLy[range(d), range(d)] = CLy[range(d), range(d)] + self.jitter
@@ -258,7 +261,7 @@ class WsabiGP:
            - var: torch.tensor, unwarped predictive variance at given locations x.
         """
         mu_warp, var_warp = predict(x, self.model)
-        mu = self.alpha + 0.5 * mu_warp**2
+        mu = self.alpha - 0.5 * mu_warp**2
         var = mu_warp * var_warp * mu_warp
         return mu, var
 
@@ -272,7 +275,7 @@ class WsabiGP:
            - var: torch.tensor, unwarped predictive variance at given locations x.
         """
         mu_warp, var_warp = predict(x, self.model)
-        mu = self.alpha + 0.5 * (mu_warp**2 + var_warp)
+        mu = self.alpha - 0.5 * (mu_warp**2 + var_warp)
         var = mu_warp * var_warp * mu_warp + 0.5 * (var_warp ** 2)
         return mu, var
 
@@ -285,7 +288,7 @@ class WsabiGP:
            - mu: torch.tensor, unwarped predictive mean at given locations x.
         """
         mu_warp, _ = predict(x, self.model)
-        mu = self.alpha + 0.5 * mu_warp**2
+        mu = self.alpha - 0.5 * mu_warp**2
         return mu
 
     def wsabim_mean_predict(self, x):
@@ -297,53 +300,5 @@ class WsabiGP:
            - mu: torch.tensor, unwarped predictive mean at given locations x.
         """
         mu_warp, var_warp = predict(x, self.model)
-        mu = self.alpha + 0.5 * (mu_warp**2 + var_warp)
+        mu = self.alpha - 0.5 * (mu_warp**2 + var_warp)
         return mu
-
-    def unimodal_approximation(self):
-        """
-        Approximating WSABI-GP with unimodal multivariate normal distribution.
-        This is equivalent to maximising posterior w.r.t prior distribution.
-        The maximisation of posterior can be achieved when prior is fitted to likelihood.
-        Such calculation can be done analytically.
-
-        Returns:
-            - mvn_pi_max: torch.distributions, mutlivariate normal distribution of optimised prior
-        """
-        return self.gauss.unimodal_approximation(self.model, self.alpha)
-
-    def uniform_transformation(self, prior):
-        """
-        Estimating the evidence with uniform prior as post-process.
-        By adopting importance sampling, we can estimate the evidence with arbitrary prior.
-        ∫l(x)π(x) = ∫l(x)π(x)/g(x) g(x)dx = ∫l'(x)g(x)dx,
-        where π(x) is the uniform prior, g(x) is the Gaussian proposal distribution.
-
-        Args:
-            - prior: torch.distributions, prior distribution
-
-        Returns:
-            - model_IS: gpytorch.models, function of GP model which is transformed into uniform distribution
-            - uni_sampler: function of samples = function(n_samples), a uniform distribution sampler
-        """
-        Xobs_uni, Yobs_uni, uni_sampler, uni_logpdf = self.gauss.uniform_transformation(
-            self.model,
-            self.Y_unwarp,
-        )
-
-        Y_IS = torch.exp(torch.log(Yobs_uni) + prior.log_prob(Xobs_uni) - uni_logpdf(Xobs_uni))
-        Y_IS = self.utils.remove_anomalies(Y_IS)
-        model_IS = update_gp(
-            Xobs_uni,
-            Y_IS.detach(),
-            self.gp_kernel,
-            self.device,
-            lik=self.lik,
-            training_iter=self.training_iter,
-            thresh=self.thresh,
-            lr=self.lr,
-            rng=self.rng,
-            train_lik=self.train_lik,
-            optimiser=self.optimiser,
-        )
-        return model_IS, uni_sampler
