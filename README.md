@@ -28,21 +28,21 @@ Batch WSABI code is here: [link](https://github.com/OxfordML/bayesquad)
 - GPyTorch
 - BoTorch
 
-## Example
+## Example & Tutorial
 ```python
 python3 main.py
 ```
 
 The example with Gaussian Mixture Likelihood (dim=10) will run.
+You can also find the detailed tutorial in the folder "Tutorial"
+- 01: How to perform BASQ.ipynb
+- 02: BayesQuad with Arbitrary kernel.ipynb
+- 03: Dealing with log likelihood. WSABI and MMLT modelling.ipynb
 
-You can find the detailed example applied to Bayesian model selection:
-[Bayesian Model Selection with BASQ](https://github.com/Battery-Intelligence-Lab/BayesianModelSelection)
-
-## For developers/researchers
-You can select arbitrary kernels/priors/parameters on ./BASQ/_parametetrs.py
-- To change kernel: change "kernel_type", such as Matern52.
-- To change prior: change the prior distribution directly as input to the BASQ. The prior must be defined by torch.distributions (see main.py)
-- As WSABI and uncertainty sampling is defined only for RBF kernel and normal prior, non-Gaussian kernel or prior will raise errors.
+Recent our work [SOBER](https://github.com/ma921/SOBER) extends BASQ for more general framework.
+We recommend try out SOBER tutorial 05 for fast Bayesian inference.
+You can also find the detailed example applied to Bayesian model selection:
+- [Bayesian Model Selection with BASQ](https://github.com/Battery-Intelligence-Lab/BayesianModelSelection)
 
 ## Cite as
 
